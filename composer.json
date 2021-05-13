@@ -1,0 +1,59 @@
+{
+    "name": "kigkonsult/sie4ito5",
+    "description": "Sie4Ito5 converts SIE 4I files to SIE5 XML",
+    "keywords": [
+        "SIE",
+        "SIE4I",
+        "SIE5",
+        "XML",
+        "export",
+        "import",
+        "accounting",
+        "book-keeping",
+        "ledger",
+        "asset",
+        "inventory"
+    ],
+    "minimum-stability": "stable",
+    "type": "library",
+    "time" : "2021-05-12",
+    "license": "LGPL-3.0-or-later",
+    "authors": [
+        {
+            "name": "Kjell-Inge Gustafsson",
+            "email": "ical@kigkonsult.se"
+        }
+    ],
+    "support": {
+        "issues": "https://github.com/iCalcreator/sie4ito5/issues"
+    },
+    "funding": [
+        {
+            "type": "other",
+            "url": "https://paypal.me/kigkonsult"
+        }
+    ],
+    "autoload": {
+        "files": ["autoload.php"],
+        "psr-4": { "Kigkonsult\\Sie4Ito5\\": ["src/"] }
+    },
+    "require": {
+        "ext-iconv": "*",
+        "php": "^7.0",
+        "kigkonsult/asit": "dev-master",
+        "kigkonsult/sie5sdk": "dev-master",
+        "kigkonsult/loggerdepot": "dev-master",
+        "kigkonsult/dsigsdk": "dev-master"
+    },
+    "require-dev": {
+        "phpunit/phpunit": ">=6.1.0",
+        "phpcompatibility/php-compatibility": ">=9.3.5",
+        "phpstan/phpstan": ">=0.9.3",
+        "squizlabs/php_codesniffer": ">=3.5.5",
+        "vimeo/psalm": "*"
+    },
+    "scripts": {
+        "post-install-cmd": "\"vendor/bin/phpcs\" --config-set installed_paths vendor/phpcompatibility/php-compatibility",
+        "post-update-cmd" : "\"vendor/bin/phpcs\" --config-set installed_paths vendor/phpcompatibility/php-compatibility"
+    }
+}

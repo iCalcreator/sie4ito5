@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ Sie4Ito5   PHP Sie 4I to 5 conversion package
+
+ This file is a part of Sie4Ito5
+
+ author    Kjell-Inge Gustafsson, kigkonsult
+ copyright 2021 Kjell-Inge Gustafsson, kigkonsult, All rights reserved
+ link      https://kigkonsult.se
+ version   1.0
+ license   Subject matter of licence is the software Sie4Ito5.
+           The above copyright, link, package and version notices,
+           this licence notice shall be included in all copies or substantial
+           portions of the Sie4Ito5.
+
+           Sie4Ito5 is free software: you can redistribute it and/or modify
+           it under the terms of the GNU Lesser General Public License as
+           published by the Free Software Foundation, either version 3 of
+           the License, or (at your option) any later version.
+
+           Sie4Ito5 is distributed in the hope that it will be useful,
+           but WITHOUT ANY WARRANTY; without even the implied warranty of
+           MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+           GNU Lesser General Public License for more details.
+
+           You should have received a copy of the GNU Lesser General Public License
+           along with Sie4Ito5. If not, see <https://www.gnu.org/licenses/>.
+-->
+<phpunit backupGlobals="false"
+         backupStaticAttributes="false"
+         colors="true"
+         convertErrorsToExceptions="true"
+         convertNoticesToExceptions="true"
+         convertWarningsToExceptions="true"
+         processIsolation="false"
+         syntaxCheck="false"
+         bootstrap="autoload.php"
+        >
+    <testsuites>
+        <testsuite name="File parse/write Tests">
+            <file>./test/TestFiles.php</file>
+        </testsuite>
+    </testsuites>
+    <filter>
+        <whitelist
+                addUncoveredFilesFromWhitelist='true'
+                processUncoveredFilesFromWhitelist="true">
+            <file>./src/Sie4I.php</file>
+            <file>./src/Sie4Iparser.php</file>
+            <file>./src/Sie4Iwriter.php</file>
+            <file>./src/Sie4IInterface.php</file>
+            <file>./src/ArrayUtil.php</file>
+            <file>./src/FileUtil.php</file>
+            <file>./src/StringUtil.php</file>
+        </whitelist>
+    </filter>
+  <logging>
+      <!-- Remove or comment after your own choice-->
+      <!-- Note, all 'logs' will be saved in 'testDocs' folder -->
+      <log type="coverage-html"
+           target="testDocs/PHPUnitCoverage"
+           lowUpperBound="35"
+           highLowerBound="70"/>
+      <!-- log type="coverage-clover"
+           target="testDocs/coverage.xml"/ -->
+      <!-- log type="coverage-php"
+           target="testDocs/coverage.serialized"/ -->
+      <!-- log type="coverage-text"
+           target="testDocs/PHPUnitReport.txt"
+           showUncoveredFiles="true"/ -->
+      <!-- log type="json"
+           target="testDocs/logfile.json"/ -->
+      <!-- log type="tap"
+           target="testDocs/logfile.tap"/ -->
+      <!-- log type="junit"
+           target="testDocs/logfile.xml"
+           logIncompleteSkipped="false"/ -->
+      <!-- log type="testdox-html"
+           target="testDocs/testdox.html"/ -->
+      <!-- log type="testdox-text"
+           target="testDocs/testdox.txt"/ -->
+  </logging>
+</phpunit>

@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<SieEntry xmlns="http://www.sie.se/sie5"
+    xmlns:xsd="http://www.w3.org/2001/xmlschema"
+    xmlns:xsi="http://www.w3.org/2001/xmlschema-instance"
+    xsi:schemalocation="http://www.sie.se/sie5 http://www.sie.se/sie5.xsd">
+  <FileInfo>
+    <SoftwareProduct name="Edison Ekonomi Byrå" version="5.0"/>
+    <FileCreation time="2015-10-30T11:45:00Z" by="Fingal Olson"/>
+    <Company organizationId="631108-4013"/>
+  </FileInfo>
+  <Accounts>
+    <Account id="1510" name="Kundfordringar" type="asset" />
+    <Account id="2610" name="Utgående moms, oreducerad" type="liability" />
+    <Account id="3010" name="Försäljning material" type="income" />
+    <Account id="3020" name="Försäljning tjänst" type="income"/>
+    <Account id="3740" name="Öres- och kronutjämning" type="income" />
+  </Accounts>
+  <Journal id="4101">
+    <JournalEntry id="100" journalDate="2014-01-04" text="Fotograf Nils Sjögran">
+      <OriginalEntryInfo date="2014-01-04" by="TH" />
+      <LedgerEntry accountId="3020" amount="-4000.00" />
+      <LedgerEntry accountId="2610" amount="-1000.00" />
+      <LedgerEntry accountId="1510" amount="5000.00" />
+    </JournalEntry>
+    <JournalEntry id="101" journalDate="2014-01-06" text="Petterssons HB">
+      <OriginalEntryInfo date="2014-01-06" by="TH" />
+      <LedgerEntry accountId="3010" amount="-3000.00" />
+      <LedgerEntry accountId="3010" amount="-35.00" />
+      <LedgerEntry accountId="2610" amount="-758.75" />
+      <LedgerEntry accountId="3740" amount="-0.25" />
+      <LedgerEntry accountId="1510" amount="3794.00" />
+    </JournalEntry>
+    <JournalEntry id="102" journalDate="2014-07-14" text="Ivans Studio">
+      <OriginalEntryInfo date="2014-07-14" by="TH" />
+      <LedgerEntry accountId="3020" amount="-28000.00" />
+      <LedgerEntry accountId="2610" amount="-7000.00" />
+      <LedgerEntry accountId="1510" amount="35000.00" />
+    </JournalEntry>
+    <JournalEntry id="103" journalDate="2014-01-07" text="Pålsson &amp; Söner">
+      <OriginalEntryInfo date="2014-01-07" by="TH" />
+      <LedgerEntry accountId="3010" amount="-3000.00" />
+      <LedgerEntry accountId="2610" amount="-750.00" />
+      <LedgerEntry accountId="1510" amount="3750.00" />
+    </JournalEntry>
+    <JournalEntry id="104" journalDate="2014-01-16" text="Turbinhus Sthlm AB">
+      <OriginalEntryInfo date="2014-01-16" by="TH" />
+      <LedgerEntry accountId="3020" amount="-41600.00" />
+      <LedgerEntry accountId="3020" amount="-7853.00" />
+      <LedgerEntry accountId="2610" amount="-12363.25" />
+      <LedgerEntry accountId="3740" amount="0.25" />
+      <LedgerEntry accountId="1510" amount="61816.00" />
+    </JournalEntry>
+  </Journal>
+</SieEntry>
