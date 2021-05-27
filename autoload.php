@@ -7,7 +7,7 @@
  * @author    Kjell-Inge Gustafsson, kigkonsult
  * @copyright 2021 Kjell-Inge Gustafsson, kigkonsult, All rights reserved
  * @link      https://kigkonsult.se
- * @version   1.0
+ * @version   1.2
  * @license   Subject matter of licence is the software Sie4Ito5.
  *            The above copyright, link, package and version notices,
  *            this licence notice shall be included in all copies or substantial

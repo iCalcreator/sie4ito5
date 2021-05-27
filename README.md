@@ -1,34 +1,52 @@
 ## Sie4Ito5
 
-- convert [Sie] Sie4I to Sie5 (SieEntry) import format and v.v 
+- convert [Sie] Sie4I to Sie5 (SieEntry) import format and Sie5 to Sie4I
 
 #### Usage
 
-Parse Sie4I file to Sie 5 import string
+Parse Sie4I fileName/string to Sie 5 XML import string
 
 ```php
 <?php
 namespace Kigkonsult\Sie4Ito5;
-use Kigkonsult\Sie5Sdk\XMLWrite\Sie5Writer;
 
-$sieEntry  = Sie4I::factory()->parse4I( <SIE4I.SI file> );
-
-$xmlString = Sie5Writer::factory()->write( $sieEntry );
-
+$xmlString = Sie4I::factory()->sie4Ito5Xml( $sie4Isource );
+// ...
 ```
 
-Parse Sie 5 import file to Sie4I (file) string 
+
+Parse array Sie4I fileNames/strings to array Sie 5 XML import strings
 
 ```php
 <?php
 namespace Kigkonsult\Sie4Ito5;
-use Kigkonsult\Sie5Sdk\SieParse\Sie5Parser;
 
-$sieEntry    = Sie5Parser::factory()->parseXmlFromFile( <Sie5Entry file> );
+$sie4Iparser  = Sie4Iparser::factory();
+$output       = [];
 
-$sie4Istring = Sie4I::factory()->write4I( $sieEntry );
-
+foreach( $sie4Isources as $sie4Isource ) {
+    $output[] = $sie4Iparser->parse4I( $sie4Isource );
+} // end foreach
+// ...
 ```
+
+Parse Sie 5 XML import file/string to Sie4I string/file 
+
+```php
+<?php
+namespace Kigkonsult\Sie4Ito5;
+
+$sie4I = new Sie4I();
+
+// parse to string
+$sie4Istring1 = $sie4I->sie5XmlFileTo4I( $sie5EntryXMLfile );
+// ...
+
+// parse to file
+$sie4Istring2 = $sie4I->sie5XmlStringTo4I( $sie5EntryXMLstring, $sie4IfileName );
+// ...
+```
+
 
 #### Info
 
@@ -36,34 +54,30 @@ Sie4Ito5 require PHP7+.
 
 Sie4Ito5 uses kigkonsult\\[SieSdk] for SieEntry parse/write XML.
 
+To set up Sie4Ito5 as a network service (using REST APIs, as a microservice etc), [Comet] is to recommend.
 
-###### Parse comments
+###### Sie4I parse comments
 
-Note för #GEN
- * if 'sign' is missing, '#PROGRAM programnamn' is used
+Note för GEN
+ * if _sign_ is missing, (#PROGRAM) _programnamn_ is used
 
-\#SRU and \#UNDERDIM are skipped
+SRU and UNDERDIM are skipped
 
-Note för #VER
- * if 'regdatum' is missing, 'verdatum' is used
- * if 'sign' is missing, '#GEN sign' is used
- * When parsing Sie4I and empty #VER::serie (JournalTypeEntry::id) and/or
-     \#VER::vernr (JournalEntryTypeEntry::id),
-     \#VER may come in any order within 'verdatum'
+Note för VER
+ * if _regdatum_ is missing, _verdatum_ is used
+ * if _sign_ is missing, (GEN) _sign_ is used
 
-Note för \#TRANS
-* only support for 'dimensionsnummer och objektnummer' in the 'objektlista'
-     i.e. no support for 'hierarkiska dimensioner'
+Note för TRANS
+* only support for _dimensionsnummer_ and _objektnummer_ in the _objektlista_<br>
+    i.e. no support for _hierarkiska dimensioner_
 
-\#RTRANS and \#BTRANS are skipped
-
-\#KSUMMA ignored at parse and, for now, write
+RTRANS and BTRANS are skipped
 
 ###### Write comments
 
- * Sie4I file creation date has format 'YYYYmmdd', SieEntry 'YYYY-MM-DDThh:mm:ssZ'
+ * Sie4I creation date has format _YYYYmmdd_,<br>SieEntry _YYYY-MM-DDThh:mm:ssZ_
 
-
+ * The (Sie5 to Sie4I) KSUMMA checksum is experimental
 
 #### Installation
 
@@ -104,6 +118,7 @@ Run tests
 cd pathToSource/Sie4Ito5
 vendor/bin/phpunit
 ```
+Due to Sie4 and Sie5 disparity, tests will break.<br>However, the output is valid.
 
 #### Sponsorship
 Donation using [paypal.me/kigkonsult] are appreciated.
@@ -123,6 +138,7 @@ This project is licensed under the LGPLv3 License
 
 
 [Composer]:https://getcomposer.org/
+[Comet]:https://github.com/gotzmann/comet
 [DsigSdk]:https://github.com/iCalcreator/dsigsdk
 [e-mail]:mailto:ical@kigkonsult.se
 [Github]:https://github.com/iCalcreator/sie4ito5/issues

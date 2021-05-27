@@ -7,7 +7,7 @@
  * @author    Kjell-Inge Gustafsson, kigkonsult
  * @copyright 2021 Kjell-Inge Gustafsson, kigkonsult, All rights reserved
  * @link      https://kigkonsult.se
- * @version   1.0
+ * @version   1.2
  * @license   Subject matter of licence is the software Sie4Ito5.
  *            The above copyright, link, package and version notices,
  *            this licence notice shall be included in all copies or substantial
@@ -49,7 +49,7 @@ Interface Sie4IInterface
      /**
       * Flaggpost som anger om filen tagits emot av mottagaren
       */
-    const FLAGGA                   = '#FLAGGA ';
+    const FLAGGA                   = '#FLAGGA';
 
     /**
      * Identifikationsposter
@@ -58,7 +58,7 @@ Interface Sie4IInterface
      /**
       * Vilket program som genererat filen
       */
-    const PROGRAM                  = '#PROGRAM ';
+    const PROGRAM                  = '#PROGRAM';
 
      /**
       * Vilken teckenuppsättning som använts
@@ -66,76 +66,76 @@ Interface Sie4IInterface
       * SKA vara IBM PC 8-bitars extended ASCII (Codepage 437)
       * https://en.wikipedia.org/wiki/Code_page_437
       */
-    const FORMAT                   = '#FORMAT ';
+    const FORMAT                   = '#FORMAT';
 
      /**
       * När och av vem som filen genererats
       */
-    const GEN                      = '#GEN ';
+    const GEN                      = '#GEN';
 
      /**
       * Vilken typ av SIE-formatet filen följer
       */
-    const SIETYP                   = '#SIETYP ';
+    const SIETYP                   = '#SIETYP';
 
      /**
       * Fri kommentartext kring filens innehåll
       * valfri
       */
-    const PROSA                    = '#PROSA ';
+    const PROSA                    = '#PROSA';
 
      /**
       * Företagstyp
       * valfri
       */
-    const FTYP                     = '#FTYP ';
+    const FTYP                     = '#FTYP';
 
      /**
       * Redovisningsprogrammets internkod för exporterat företag
       * valfri
       */
-    const FNR                      = '#FNR ';
+    const FNR                      = '#FNR';
 
      /**
       * Organisationsnummer för det företag som exporterats
       * valfri
       */
-    const ORGNR                    = '#ORGNR ';
+    const ORGNR                    = '#ORGNR';
 
      /**
       * Adressuppgifter för det aktuella företaget
       * valfri
       */
-    const ADRESS                   = '#ADRESS ';
+    const ADRESS                   = '#ADRESS';
 
      /**
       * Fullständigt namn för det företag som exporterats
       */
-    const FNAMN                    = '#FNAMN ';
+    const FNAMN                    = '#FNAMN';
 
      /**
       * Räkenskapsår från vilket exporterade data hämtats
       * valfri
       */
-    const RAR                      = '#RAR ';
+    const RAR                      = '#RAR';
 
      /**
       * Taxeringsår för deklarations- information (SRU-koder)
       * valfri
       */
-    const TAXAR                    = '#TAXAR ';
+    const TAXAR                    = '#TAXAR';
 
      /**
       * Kontoplanstyp
       * valfri
       */
-    const KPTYP                    = '#KPTYP ';
+    const KPTYP                    = '#KPTYP';
 
      /**
       * Redovisningsvaluta
       * valfri
       */
-    const VALUTA                   = '#VALUTA ';
+    const VALUTA                   = '#VALUTA';
 
 
     /**
@@ -146,43 +146,43 @@ Interface Sie4IInterface
       * Kontouppgifter
       * valfri
       */
-    const KONTO                    = '#KONTO ';
+    const KONTO                    = '#KONTO';
 
      /**
       * Kontotyp
       * valfri
       */
-    const KTYP                     = '#KTYP ';
+    const KTYP                     = '#KTYP';
 
      /**
       * Enhet vid kvantitetsredovisning
       * valfri
       */
-    const ENHET                    = '#ENHET ';
+    const ENHET                    = '#ENHET';
 
      /**
       * RSV-kod för standardiserat räkenskapsutdrag
       * valfri
       */
-    const SRU                      = '#SRU ';
+    const SRU                      = '#SRU';
 
      /**
       * Dimension
       * valfri
       */
-    const DIM                      = '#DIM ';
+    const DIM                      = '#DIM';
 
      /**
       * Underdimension
       * valfri
       */
-    const UNDERDIM                 = '#UNDERDIM ';
+    const UNDERDIM                 = '#UNDERDIM';
 
      /**
       * Objekt
       * valfri
       */
-    const OBJEKT                   = '#OBJEKT ';
+    const OBJEKT                   = '#OBJEKT';
 
     /**
      * Saldoposter/Verifikationsposter
@@ -192,25 +192,25 @@ Interface Sie4IInterface
       * Verifikationspost
       * valfri
       */
-    const VER                      = '#VER ';
+    const VER                      = '#VER';
 
      /**
       * Transaktionspost
       * valfri
       */
-    const TRANS                    = '#TRANS ';
+    const TRANS                    = '#TRANS';
 
      /**
       * Tillagd transaktionspost
       * valfri
       */
-    const RTRANS                   = '#RTRANS ';
+    const RTRANS                   = '#RTRANS';
 
      /**
       * Borttagen transaktionspost
       * valfri
       */
-    const BTRANS                   = '#BTRANS ';
+    const BTRANS                   = '#BTRANS';
 
     /**
      * Kontrollsummeposter
@@ -220,5 +220,5 @@ Interface Sie4IInterface
       * Start av kontrollsummering/-summa
       * valfri
       */
-    const KSUMMA                   = '#KSUMMA ';
+    const KSUMMA                   = '#KSUMMA';
 }

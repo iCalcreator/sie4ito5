@@ -7,7 +7,7 @@
  * @author    Kjell-Inge Gustafsson, kigkonsult
  * @copyright 2021 Kjell-Inge Gustafsson, kigkonsult, All rights reserved
  * @link      https://kigkonsult.se
- * @version   1.0
+ * @version   1.2
  * @license   Subject matter of licence is the software Sie4Ito5.
  *            The above copyright, link, package and version notices,
  *            this licence notice shall be included in all copies or substantial
@@ -29,6 +29,7 @@
 declare( strict_types = 1 );
 namespace Kigkonsult\Sie4Ito5;
 
+use InvalidArgumentException;
 use Kigkonsult\Asit\It;
 use Kigkonsult\Sie4Ito5\Util\ArrayUtil;
 use Kigkonsult\Sie4Ito5\Util\FileUtil;
@@ -40,16 +41,17 @@ use Kigkonsult\Sie5Sdk\Dto\LedgerEntryTypeEntry;
 use Kigkonsult\Sie5Sdk\Impl\CommonFactory;
 use Kigkonsult\Sie5Sdk\Dto\SieEntry;
 
+use function crc32;
+use function implode;
 use function rtrim;
 use function sprintf;
 
 class Sie4Iwriter implements Sie4IInterface
 {
-    private static $SIEENTRYFMT0 = '%s';
-    private static $SIEENTRYFMT1 = '%s%s';
-    private static $SIEENTRYFMT2 = '%s%s %s';
-    private static $SIEENTRYFMT3 = '%s%s %s %s';
-    private static $SIEENTRYFMT6 = '%s%s %s %s %s %s %s';
+    private static $SIEENTRYFMT1 = '%s %s';
+    private static $SIEENTRYFMT2 = '%s %s %s';
+    private static $SIEENTRYFMT3 = '%s %s %s %s';
+    private static $SIEENTRYFMT6 = '%s %s %s %s %s %s %s';
     private static $YYYYMMDD     = 'Ymd';
     private static $DOUBLEQUOTE  = '""';
 
@@ -81,6 +83,24 @@ class Sie4Iwriter implements Sie4IInterface
     private $ksummaBase  = null;
 
     /**
+     * @param mixed ...$args
+     */
+    private function appendKsumma( ...$args )
+    {
+        if( $this->writeKsumma ) {
+            $this->ksummaBase .= implode( $args );
+        }
+    }
+
+    /**
+     * @return null|string
+     */
+    public function getKsummaBase()
+    {
+        return $this->ksummaBase;
+    }
+
+    /**
      * Return instance
      *
      * @return static
@@ -95,17 +115,31 @@ class Sie4Iwriter implements Sie4IInterface
      * @param null|string  $fileName
      * @param null|bool    $writeKsumma
      * @return string
+     * @throws InvalidArgumentException
      */
-    public function write4I( SieEntry $sieEntry, $fileName = null, $writeKsumma = false ) : string
+    public function write4I(
+        SieEntry $sieEntry,
+        $fileName = null,
+        $writeKsumma = false
+    ) : string
     {
+        static $FMT1 = 'Ofullständig SieEntry indata';
         if( ! empty( $fileName )) {
             FileUtil::assertWriteFile( $fileName );
+        }
+        if( ! $sieEntry->isValid()) {
+            throw new InvalidArgumentException( $FMT1, 2201 );
         }
         $this->sieEntry    = $sieEntry;
         $this->output      = new It();
         $this->writeKsumma = (bool) $writeKsumma;
 
-        $this->output->append( sprintf( self::$SIEENTRYFMT1, self::FLAGGA, StringUtil::$ZERO ));
+        $this->output->append(
+            sprintf( self::$SIEENTRYFMT1, self::FLAGGA, StringUtil::$ZERO )
+        );
+        if( $this->writeKsumma ) {
+            $this->output->append( self::KSUMMA );
+        }
         $this->writeIdData();
         $this->writeAccountData();
         $this->writeLedgerEntryData();
@@ -124,67 +158,92 @@ class Sie4Iwriter implements Sie4IInterface
      */
     private function writeIdData()
     {
-        static $FORMAT = '#FORMAT PC8';
-        static $SIETYP = '#SIETYP 4';
+        static $FORMATPC8 = 'PC8';
+        static $SIETYP4   = '4';
         $fileInfo = $this->sieEntry->getFileInfo();
 
         // #PROGRAM programnamn version
         $softwareProduct = $fileInfo->getSoftwareProduct();
+        $programnamn     = StringUtil::utf8toCP437( $softwareProduct->getName());
+        $version         = StringUtil::utf8toCP437( $softwareProduct->getVersion());
+        $this->appendKsumma( self::PROGRAM, $programnamn, $version );
         $this->output->append(
             sprintf(
                 self::$SIEENTRYFMT2,
                 self::PROGRAM,
-                StringUtil::quoteString( StringUtil::utf8toCP437( $softwareProduct->getName())),
-                StringUtil::quoteString( StringUtil::utf8toCP437( $softwareProduct->getVersion()))
+                StringUtil::quoteString( $programnamn ),
+                StringUtil::quoteString( $version )
             )
         );
 
         // #FORMAT PC8
-        $this->output->append( $FORMAT );
+        $this->appendKsumma( self::FORMAT, $FORMATPC8 );
+        $this->output->append(
+            sprintf(
+                self::$SIEENTRYFMT1,
+                self::FORMAT,
+                $FORMATPC8
+            )
+        );
 
         // #GEN datum sign
         $fileCreation = $fileInfo->getFileCreation();
+        $datum        = $fileCreation->getTime()->format( self::$YYYYMMDD );
+        $sign         = StringUtil::utf8toCP437( $fileCreation->getBy());
+        $this->appendKsumma( self::GEN, $datum, $sign );
         $this->output->append(
             sprintf(
                 self::$SIEENTRYFMT2,
                 self::GEN,
-                $fileCreation->getTime()->format( self::$YYYYMMDD ),
-                StringUtil::quoteString( StringUtil::utf8toCP437( $fileCreation->getBy()))
+                $datum,
+                StringUtil::quoteString( $sign )
             )
         );
 
         // #SIETYP typnr
-        $this->output->append( $SIETYP );
+        $this->appendKsumma( self::SIETYP, $SIETYP4 );
+        $this->output->append(
+            sprintf(
+                self::$SIEENTRYFMT1,
+                self::SIETYP,
+                $SIETYP4
+            )
+        );
 
         $company = $fileInfo->getCompany();
         // #FNR företagsid
         $companyClientId = $company->getClientId();
         if( ! empty( $companyClientId )) {
+            $companyClientId = StringUtil::utf8toCP437( $companyClientId );
+            $this->appendKsumma( self::FNR, $companyClientId );
             $this->output->append(
-                sprintf(
-                    self::$SIEENTRYFMT1,
-                    self::FNR,
-                    StringUtil::utf8toCP437( $company->getClientId() )
-                )
+                sprintf( self::$SIEENTRYFMT1, self::FNR, $companyClientId )
             );
         }
         // #ORGNR orgnr förvnr verknr (förvnr = multiple if not is null|1)
+        $orgnr    = $company->getOrganizationId();
+        $multiple = ( $company->getMultiple() ?: StringUtil::$SP0 );
+        $this->appendKsumma( self::ORGNR, $orgnr, $multiple );
         $this->output->append(
-            sprintf(
-                self::$SIEENTRYFMT2,
-                self::ORGNR,
-                $company->getOrganizationId(),
-                ( $company->getMultiple() ?: 1 )
+            rtrim(
+                sprintf(
+                    self::$SIEENTRYFMT2,
+                    self::ORGNR,
+                    $orgnr,
+                    $multiple
+                )
             )
         );
         // #FNAMN företagsnamn
         $companyName = $company->getName();
         if( ! empty( $companyName )) {
+            $companyName = StringUtil::utf8toCP437( $companyName );
+            $this->appendKsumma( self::FNAMN, $companyName );
             $this->output->append(
                 sprintf(
                     self::$SIEENTRYFMT1,
                     self::FNAMN,
-                    StringUtil::quoteString( StringUtil::utf8toCP437( $companyName ))
+                    StringUtil::quoteString( $companyName )
                 )
             );
         }
@@ -192,12 +251,12 @@ class Sie4Iwriter implements Sie4IInterface
         // #VALUTA valutakod
         $accountingCurrency = $fileInfo->getAccountingCurrency();
         if( ! empty( $accountingCurrency )) {
+            $valutakod = StringUtil::utf8toCP437(
+                $accountingCurrency->getCurrency()
+            );
+            $this->appendKsumma( self::VALUTA, $valutakod );
             $this->output->append(
-                sprintf(
-                    self::$SIEENTRYFMT1,
-                    self::VALUTA,
-                    StringUtil::utf8toCP437( $accountingCurrency->getCurrency() )
-                )
+                sprintf( self::$SIEENTRYFMT1, self::VALUTA, $valutakod )
             );
         }
     }
@@ -212,7 +271,7 @@ class Sie4Iwriter implements Sie4IInterface
         $accounts = $this->sieEntry->getAccounts();
         if( ! empty( $accounts )) {
             foreach( $accounts->getAccount() as $accountTypeEntry ) {
-                // empty row before #KONTO
+                // empty row before each #KONTO
                 $this->output->append( StringUtil::$SP0 );
                 $this->writeKontoData( $accountTypeEntry );
             } // end foreach
@@ -243,33 +302,39 @@ class Sie4Iwriter implements Sie4IInterface
             AccountTypeEntry::COST      => 'K', // kostnad
             AccountTypeEntry::INCOME    => 'I', // Intäkt
         ];
-        $kontoNr = $accountTypeEntry->getId();
+        $kontoNr   = $accountTypeEntry->getId();
+        $kontonamn = StringUtil::utf8toCP437( $accountTypeEntry->getName());
+        $this->appendKsumma( self::KONTO, $kontoNr, $kontonamn );
         $this->output->append(
             sprintf(
                 self::$SIEENTRYFMT2,
                 self::KONTO,
                 $kontoNr,
-                StringUtil::quoteString(
-                    StringUtil::utf8toCP437( $accountTypeEntry->getName())
-                )
+                StringUtil::quoteString( $kontonamn )
             )
         );
+        $kontotyp = StringUtil::utf8toCP437(
+            $KONTOTYPER[$accountTypeEntry->getType()]
+        );
+        $this->appendKsumma( self::KTYP, $kontoNr, $kontotyp );
         $this->output->append(
             sprintf(
                 self::$SIEENTRYFMT2,
                 self::KTYP,
                 $kontoNr,
-                StringUtil::utf8toCP437( $KONTOTYPER[$accountTypeEntry->getType()] )
+                $kontotyp
             )
         );
         $enhet = $accountTypeEntry->getUnit();
         if( ! empty( $enhet )) {
+            $enhet = StringUtil::utf8toCP437( $enhet );
+            $this->appendKsumma( self::ENHET, $kontoNr, $enhet );
             $this->output->append(
                 sprintf(
                     self::$SIEENTRYFMT2,
                     self::ENHET,
                     $kontoNr,
-                    StringUtil::utf8toCP437( $enhet )
+                    $enhet
                 )
             );
         } // end if
@@ -284,14 +349,14 @@ class Sie4Iwriter implements Sie4IInterface
     private function writeDimObjectData( DimensionTypeEntry $dimensionTypeEntry )
     {
         $dimId = $dimensionTypeEntry->getId();
+        $namn  = StringUtil::utf8toCP437( $dimensionTypeEntry->getName());
+        $this->appendKsumma( self::DIM, $dimId, $namn );
         $this->output->append(
             sprintf(
                 self::$SIEENTRYFMT2,
                 self::DIM,
                 $dimId,
-                StringUtil::quoteString(
-                    StringUtil::utf8toCP437( $dimensionTypeEntry->getName())
-                )
+                StringUtil::quoteString( $namn )
             )
         );
         $objects = $dimensionTypeEntry->getObject();
@@ -299,17 +364,16 @@ class Sie4Iwriter implements Sie4IInterface
             return;
         }
         foreach( $objects as $objectType ) {
+            $objektnr   = StringUtil::utf8toCP437( $objectType->getId());
+            $objektnamn = StringUtil::utf8toCP437( $objectType->getName());
+            $this->appendKsumma( self::OBJEKT, $dimId, $objektnr, $objektnamn );
             $this->output->append(
                 sprintf(
                     self::$SIEENTRYFMT3,
                     self::OBJEKT,
                     $dimId,
-                    StringUtil::quoteString(
-                        StringUtil::utf8toCP437( $objectType->getId())
-                    ),
-                    StringUtil::quoteString(
-                        StringUtil::utf8toCP437( $objectType->getName())
-                    )
+                    StringUtil::quoteString( $objektnr ),
+                    StringUtil::quoteString( $objektnamn )
                 )
             );
         } // end foreach $objects
@@ -321,18 +385,16 @@ class Sie4Iwriter implements Sie4IInterface
     private function writeLedgerEntryData()
     {
         $journals = $this->sieEntry->getJournal();
+        // fetch sign from #GEN (applied sign in #VER)
+        $genSign  = $this->sieEntry->getFileInfo()->getFileCreation()->getBy();
         foreach( $journals as $journalTypeEntry ) {
-            $serie = $journalTypeEntry->getId();
-            if( empty( $serie )) {
-                $serie = self::$DOUBLEQUOTE;
-            }
+            $serie = StringUtil::utf8toCP437((string) $journalTypeEntry->getId());
             foreach( $journalTypeEntry->getJournalEntry() as $journalEntryTypeEntry) {
-                // empty row before #VER
+                // empty row before each #VER
                 $this->output->append( StringUtil::$SP0 );
-                $this->writeVerTransData( $journalEntryTypeEntry, $serie );
+                $this->writeVerTransData( $journalEntryTypeEntry, $serie, $genSign );
 
             } // end foreach $journalTypeEntry->getJournalEntry()
-
         } // end foreach $journals
     }
 
@@ -343,39 +405,87 @@ class Sie4Iwriter implements Sie4IInterface
      *
      * @param JournalEntryTypeEntry $journalEntryTypeEntry
      * @param string                $serie
+     * @param string                $genSign
      */
-    private function writeVerTransData( JournalEntryTypeEntry $journalEntryTypeEntry, string $serie )
+    private function writeVerTransData(
+        JournalEntryTypeEntry $journalEntryTypeEntry,
+        string $serie,
+        string $genSign
+    )
     {
+        $this->appendKsumma( self::VER );
+        if( empty( $serie)) {
+            $serie = self::$DOUBLEQUOTE;
+        }
+        else {
+            $this->appendKsumma( $serie );
+        }
+
         $vernr     = $journalEntryTypeEntry->getId();
         if( empty( $vernr )) {
             $vernr = self::$DOUBLEQUOTE;
         }
+        else {
+            $this->appendKsumma( $vernr );
+        }
+
         $verdatum  = $journalEntryTypeEntry->getJournalDate()->format( self::$YYYYMMDD );
+        $this->appendKsumma( $verdatum );
+
         $vertext   = $journalEntryTypeEntry->getText();
+        if( empty( $vertext )) {
+            $vertext = self::$DOUBLEQUOTE;
+        }
+        else {
+            $vertext = StringUtil::utf8toCP437( $vertext );
+            $this->appendKsumma( $vertext );
+            $vertext = StringUtil::quoteString( $vertext );
+        }
+
         $originalEntryInfo = $journalEntryTypeEntry->getOriginalEntryInfo();
-        $regdatum  = $originalEntryInfo->getDate()->format( self::$YYYYMMDD );
-        $sign      = $originalEntryInfo->getBy();
+        $regdatum = $originalEntryInfo->getDate()->format( self::$YYYYMMDD );
+        if( $verdatum == $regdatum ) {
+            // skip if equal
+            $regdatum = self::$DOUBLEQUOTE;
+        }
+        else {
+            $this->appendKsumma( $regdatum );
+        }
+        $sign = $originalEntryInfo->getBy();
+        if( $sign == $genSign ) {
+            // if none found in input and #GEN used
+            $sign = StringUtil::$SP0;
+            if( self::$DOUBLEQUOTE == $regdatum ) {
+                $regdatum = StringUtil::$SP0;
+                if( self::$DOUBLEQUOTE == $vertext ) {
+                    $vertext = StringUtil::$SP0;
+                }
+            }
+        } // end if
+        else {
+            $sign = StringUtil::utf8toCP437( $sign );
+            $this->appendKsumma( $sign );
+        }
+
         $this->output->append(
-            sprintf(
-                self::$SIEENTRYFMT6,
-                self::VER,
-                StringUtil::utf8toCP437( $serie ),
-                StringUtil::utf8toCP437((string) $vernr ),
-                $verdatum,
-                StringUtil::quoteString( StringUtil::utf8toCP437( $vertext )),
-                $regdatum,
-                StringUtil::utf8toCP437( $sign )
+            rtrim(
+                sprintf(
+                    self::$SIEENTRYFMT6,
+                    self::VER,
+                    $serie,
+                    (string) $vernr,
+                    $verdatum,
+                    $vertext,
+                    $regdatum,
+                    $sign
+                )
             )
         );
-        $this->output->append(
-            sprintf( self::$SIEENTRYFMT0, StringUtil::$CURLYBRACKETS[0] )
-        );
+        $this->output->append( StringUtil::$CURLYBRACKETS[0] );
         foreach( $journalEntryTypeEntry->getLedgerEntry() as $ledgerEntryTypeEntry ) {
-            $this->writeTransData( $ledgerEntryTypeEntry );
+            $this->writeTransData( $ledgerEntryTypeEntry, $verdatum );
         }
-        $this->output->append(
-            sprintf( self::$SIEENTRYFMT0, StringUtil::$CURLYBRACKETS[1] )
-        );
+        $this->output->append( StringUtil::$CURLYBRACKETS[1] );
     }
 
     /**
@@ -383,22 +493,48 @@ class Sie4Iwriter implements Sie4IInterface
      *
      * #TRANS kontonr {objektlista} belopp transdat(opt) transtext(opt) kvantitet sign
      * ex  #TRANS 7010 {"1" "456" "7" "47"} 13200.00
+     * Note, sign is skipped
      *
      * @param LedgerEntryTypeEntry $ledgerEntryTypeEntry
+     * @param string $verdatum
      */
-    private function writeTransData( LedgerEntryTypeEntry $ledgerEntryTypeEntry )
+    private function writeTransData(
+        LedgerEntryTypeEntry $ledgerEntryTypeEntry,
+        string $verdatum
+    )
     {
-        $kontonr     = $ledgerEntryTypeEntry->getAccountId();
-        $objektlista = self::getObjektLista( $ledgerEntryTypeEntry->getLedgerEntryTypeEntries());
+        $kontonr     = StringUtil::utf8toCP437( $ledgerEntryTypeEntry->getAccountId());
+        $this->appendKsumma( self::TRANS, $kontonr );
+
+        list( $objektlista, $ksummsPart ) = self::getObjektLista(
+            $ledgerEntryTypeEntry->getLedgerEntryTypeEntries()
+        );
+        if( ! empty( $objektlista )) {
+            $this->appendKsumma( $ksummsPart );
+        }
+
         $belopp      = CommonFactory::formatAmount( $ledgerEntryTypeEntry->getAmount());
+        $this->appendKsumma( $belopp );
+
         $transdat    = $ledgerEntryTypeEntry->getLedgerDate();
-        $transdat    = empty( $transdat )
-            ? self::$DOUBLEQUOTE
-            : $transdat->format( self::$YYYYMMDD );
+        if( empty( $transdat ) || ( $transdat == $verdatum )) {
+            $transdat = self::$DOUBLEQUOTE;
+        }
+        else {
+            $transdat = $transdat->format( self::$YYYYMMDD );
+            $this->appendKsumma( $transdat );
+        }
+
         $transtext = $ledgerEntryTypeEntry->getText();
         if( empty( $transtext )) {
             $transtext = self::$DOUBLEQUOTE;
         }
+        else {
+            $transtext = StringUtil::utf8toCP437( $transtext );
+            $this->appendKsumma( $transtext );
+            $transtext = StringUtil::quoteString( $transtext );
+        }
+
         $kvantitet = $ledgerEntryTypeEntry->getQuantity();
         if( empty( $kvantitet )) {
             $kvantitet = StringUtil::$SP0;
@@ -409,16 +545,19 @@ class Sie4Iwriter implements Sie4IInterface
                 }
             } // end if
         } // end if
+        else {
+            $this->appendKsumma( $kvantitet );
+        }
         $this->output->append(
             rtrim(
                 sprintf(
                     self::$SIEENTRYFMT6,
                     self::TRANS,
-                    StringUtil::utf8toCP437( $kontonr ),
-                    StringUtil::utf8toCP437( $objektlista ),
+                    $kontonr,
+                    $objektlista,
                     $belopp,
                     $transdat,
-                    StringUtil::utf8toCP437( $transtext ),
+                    $transtext,
                     $kvantitet
                 )
             )
@@ -426,32 +565,34 @@ class Sie4Iwriter implements Sie4IInterface
     }
 
     /**
-     * Return string of (quoted) dimId and objectId pairs
+     * Return string with (quoted) dimId and objectId pairs (if set)
      *
-     * @param mixed $ledgerEntryTypeEntries
-     * @return string
+     * @param array $ledgerEntryTypeEntries
+     * @return array
      */
-    private static function getObjektLista( $ledgerEntryTypeEntries ) : string
+    private static function getObjektLista( array $ledgerEntryTypeEntries ) : array
     {
-        $objektlista = StringUtil::$SP0;
-        if( ! empty( $ledgerEntryTypeEntries )) {
-            foreach( $ledgerEntryTypeEntries as $elementSets ) {
-                foreach( $elementSets as $elementSet ) {
-                    if( ! empty( $objektlista )) {
-                        $objektlista .= StringUtil::$SP1;
-                    }
-                    foreach( $elementSet as $elementType => $ledgerEntryType ) {
-                        if( SieEntry::OBJECTREFERENCE !== $elementType ) {
-                            continue;
-                        }
-                        $objektlista .= StringUtil::quoteString((string) $ledgerEntryType->getDimId());
-                        $objektlista .= StringUtil::$SP1;
-                        $objektlista .= StringUtil::quoteString( $ledgerEntryType->getObjectId() );
-                    } // end foreach $elementSet
-                } // end foreach $elementSets
-            } // end foreach $ledgerEntryTypeEntries
-        } // end if $ledgerEntryTypeEntries
-        return StringUtil::curlyBacketsString( $objektlista );
+        $objektlista = [];
+        $ksummaPart  = StringUtil::$SP0;
+        foreach( $ledgerEntryTypeEntries as $elementSets ) {
+            foreach( $elementSets as $elementSet ) {
+                foreach( $elementSet as $elementType => $objectReferenceType ) {
+                    if( SieEntry::OBJECTREFERENCE == $elementType ) {
+                        $dimId         = $objectReferenceType->getDimId();
+                        $objektlista[] = StringUtil::quoteString((string) $dimId );
+                        $objektId      = StringUtil::utf8toCP437(
+                            $objectReferenceType->getObjectId()
+                        );
+                        $objektlista[] = StringUtil::quoteString( $objektId );
+                        $ksummaPart   .= $dimId . $objektId;
+                    } // end if
+                } // end foreach $elementSet
+            } // end foreach $elementSets
+        } // end foreach $ledgerEntryTypeEntries
+        return [
+            StringUtil::curlyBacketsString( implode( StringUtil::$SP1, $objektlista )),
+            $ksummaPart
+        ];
     }
 
     /**
@@ -459,6 +600,14 @@ class Sie4Iwriter implements Sie4IInterface
      */
     private function computeAndWriteKsumma()
     {
-        // nothing for now
+        // empty row before
+        $this->output->append( StringUtil::$SP0 );
+        $this->output->append(
+            sprintf(
+                self::$SIEENTRYFMT1,
+                self::KSUMMA,
+                (string) crc32( $this->getKsummaBase())
+            )
+        );
     }
 }

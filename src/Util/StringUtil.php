@@ -7,7 +7,7 @@
  * @author    Kjell-Inge Gustafsson, kigkonsult
  * @copyright 2021 Kjell-Inge Gustafsson, kigkonsult, All rights reserved
  * @link      https://kigkonsult.se
- * @version   1.0
+ * @version   1.2
  * @license   Subject matter of licence is the software Sie4Ito5.
  *            The above copyright, link, package and version notices,
  *            this licence notice shall be included in all copies or substantial
@@ -82,7 +82,8 @@ class StringUtil
         }
         $msg = self::$SP0;
         try {
-            $output = iconv( self::$UTF8, self::$CP437 . self::$IGNORE, $string );
+//          $output = iconv( self::$UTF8, self::$CP437 . self::$IGNORE, $string );
+            $output = iconv( self::$UTF8, self::$CP437, $string );
         }
         catch( Exception $e ) {
             $output = false;
@@ -90,8 +91,9 @@ class StringUtil
         }
         if( false === $output ) {
             throw new RuntimeException(
-                sprintf( self::$FMT1, $msg, self::$UTF8, self::$CP437 . self::$IGNORE, $string ),
-                2111
+//              sprintf( self::$FMT1, $msg, self::$UTF8, self::$CP437 . self::$IGNORE, $string ),
+                sprintf( self::$FMT1, $msg, self::$UTF8, self::$CP437, $string ),
+                6111
             );
         }
         return $output;
@@ -109,7 +111,8 @@ class StringUtil
         }
         $msg = self::$SP0;
         try {
-            $output = iconv( self::$CP437, self::$UTF8 . self::$IGNORE, $string );
+//          $output = iconv( self::$CP437, self::$UTF8 . self::$IGNORE, $string );
+            $output = iconv( self::$CP437, self::$UTF8, $string );
         }
         catch( Exception $e ) {
             $output = false;
@@ -117,8 +120,9 @@ class StringUtil
         }
         if( false === $output ) {
             throw new RuntimeException(
-                sprintf( self::$FMT1, $msg, self::$CP437, self::$UTF8 . self::$IGNORE, $string ),
-                2211
+//              sprintf( self::$FMT1, $msg, self::$CP437, self::$UTF8 . self::$IGNORE, $string ),
+                sprintf( self::$FMT1, $msg, self::$CP437, self::$UTF8, $string ),
+                6211
             );
         }
         return $output;
@@ -182,13 +186,17 @@ class StringUtil
     }
 
     /**
-     * Return quoted string
+     * Return quoted string, inline quotes prepended by backslash
      *
      * @param string $string
      * @return string
      */
     public static function quoteString( string $string ) : string
     {
+        static $BSQ = '\\"';
+        if( self::isIn( self::$QUOTE, $string )) {
+            $string = str_replace( self::$QUOTE, $BSQ, $string );
+        }
         return self::$QUOTE . trim( $string ) . self::$QUOTE;
     }
 
@@ -215,8 +223,11 @@ class StringUtil
         if( ! self::startsWith( $post, $HASH )) {
             return [ null, self::splitContent( $post ) ];
         }
-        $label   = self::before( self::$SP1, $post ) . self::$SP1;
-        $content = self::splitContent( self::after( $label, $post ));
+        if( ! self::isIn( self::$SP1, $post )) {
+            return [ $post, [] ];
+        }
+        $label   = self::before( self::$SP1, $post );
+        $content = self::splitContent( self::after( $label . self::$SP1, $post ));
         return [ $label, $content ];
     }
 
@@ -230,8 +241,8 @@ class StringUtil
      */
     public static function splitContent( string $content ) : array
     {
-        static $BSQ   = '\\"';
         static $QFSs  = [ ' "', '{"' ];
+        static $BS    = '\\';
         $content      = trim( $content );
         if( empty( $content )) {
             return [];
@@ -245,6 +256,11 @@ class StringUtil
         $quoteFound    = false;
         $current       = self::$SP0;
         for( $x = 0; $x < $len; $x++ ) {
+            $byteInt   = ord( $content[$x] );
+            if(( $byteInt < 32 ) || ( 127 == $byteInt )) {
+                // skip control characters
+                continue;
+            }
             $xNext     = $x + 1;
             $xNext2    = $x + 2;
             $xPrev     = $x - 1;
@@ -284,9 +300,10 @@ class StringUtil
                     // quoted field start
                     $quoteFound = true;
                     break;
-                case ( ( self::$QUOTE == $content[$x] ) &&
-                    ( isset( $content[$xPrev] ) && ( $BSQ == substr( $content, $xPrev, 2 )))) :
-                    // '\"' found
+                case (( $BS == $content[$x] ) &&
+                    isset( $content[$xNext] ) && ( self::$QUOTE == $content[$xNext] )) :
+                    // '\"' found, skip the backslash
+                    $x        = $xNext;
                     $current .= $content[$x];
                     break;
                 case ( $quoteFound && ( self::$QUOTE == $content[$x] )) :
@@ -475,7 +492,7 @@ class StringUtil
     /**
      * Return bool true if haystack starts with needle, false on not found or to large
      *
-     * Case-sensitive search for needle in haystack
+     * Case-sensitive search for needle (first) in haystack
      *
      * @param string $haystack
      * @param string $needle

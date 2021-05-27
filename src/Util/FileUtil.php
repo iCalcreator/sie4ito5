@@ -7,7 +7,7 @@
  * @author    Kjell-Inge Gustafsson, kigkonsult
  * @copyright 2021 Kjell-Inge Gustafsson, kigkonsult, All rights reserved
  * @link      https://kigkonsult.se
- * @version   1.0
+ * @version   1.2
  * @license   Subject matter of licence is the software Sie4Ito5.
  *            The above copyright, link, package and version notices,
  *            this licence notice shall be included in all copies or substantial
@@ -50,14 +50,19 @@ class FileUtil
      */
     public static function assertReadFile( string $fileName )
     {
-        static $FMT1 = ' is NO file';
-        static $FMT2 = ' is NOT readable';
+        static $FMT1 = ' do NO exists';
+        static $FMT2 = ' is NO file';
+        static $FMT3 = ' is NOT readable';
+        if( ! file_exists( $fileName )) {
+            throw new InvalidArgumentException( $fileName . $FMT1, 5111 );
+        }
         if( ! is_file( $fileName )) {
-            throw new InvalidArgumentException( $fileName . $FMT1, 3111 );
+            throw new InvalidArgumentException( $fileName . $FMT2, 5112 );
         }
         if( ! is_readable( $fileName )) {
-            throw new InvalidArgumentException( $fileName . $FMT2, 3112 );
+            throw new InvalidArgumentException( $fileName . $FMT3, 5113 );
         }
+        clearstatcache( false, $fileName );
     }
 
     /**
@@ -73,10 +78,10 @@ class FileUtil
         static $FMT4 = ' is EMPTY';
         $input = file( $fileName, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES );
         if( false === $input ) {
-            throw new RuntimeException( $FMT3 . $fileName, 3211 );
+            throw new RuntimeException( $FMT3 . $fileName, 5211 );
         }
         if( empty( $input )) {
-            throw new RuntimeException( $fileName . $FMT4, 3212 );
+            throw new RuntimeException( $fileName . $FMT4, 5212 );
         }
         return $input;
     }
@@ -92,10 +97,10 @@ class FileUtil
         static $FMT1 = 'Can\'t create ';
         static $FMT2 = ' is NOT writeable ';
         if( ! file_exists( $fileName ) && ( false === touch( $fileName ))) {
-            throw new InvalidArgumentException( $FMT1 . $fileName, 3311 );
+            throw new InvalidArgumentException( $FMT1 . $fileName, 5311 );
         }
         if( ! is_writable( $fileName )) {
-            throw new InvalidArgumentException( $fileName . $FMT2, 3312 );
+            throw new InvalidArgumentException( $fileName . $FMT2, 5312 );
         }
     }
 
@@ -110,7 +115,7 @@ class FileUtil
     {
         static $FMT3 = 'Can\'t write to ';
         if( false === file_put_contents( $fileName, $output )) {
-            throw new RuntimeException( $FMT3 . $fileName, 3411 );
+            throw new RuntimeException( $FMT3 . $fileName, 5411 );
         }
     }
 }

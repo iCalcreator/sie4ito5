@@ -29,31 +29,35 @@
 declare( strict_types = 1 );
 namespace Kigkonsult\Sie4Ito5\Util;
 
-class ArrayUtil
+use DateTime;
+use Exception;
+use RuntimeException;
+
+use function sprintf;
+
+class DateTimeUtil
 {
-    /**
-     * @param array  $array
-     * @param string $key
-     */
-    public static function assureIsArray( array & $array, string $key )
-    {
-        if( ! isset( $array[$key] )) {
-            $array[$key] = [];
-        }
-    }
 
     /**
-     * Add end eol to each array element
-     *
-     * @param array $array
-     * @return array
+     * @param string $dateTimeString
+     * @param string $label
+     * @param int    $errCode
+     * @return DateTime
      */
-    public static function eolEndElements( array $array ) : array
+    public static function getDateTime( string $dateTimeString, string $label, int $errCode ) : DateTime
     {
-        $output = [];
-        foreach( $array as $key => $value ) {
-            $output[$key] = $value . PHP_EOL;
+        static $FMT0 = '%s : %s, %s';
+        try {
+            $dateTime = new DateTime( $dateTimeString );
         }
-        return $output;
+        catch( Exception $e ) {
+            throw new RuntimeException(
+                sprintf( $FMT0, $label, $dateTimeString, $e->getMessage()),
+                $errCode,
+                $e
+            );
+        }
+        return $dateTime;
     }
+
 }

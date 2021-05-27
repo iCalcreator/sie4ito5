@@ -7,7 +7,7 @@
  * @author    Kjell-Inge Gustafsson, kigkonsult
  * @copyright 2021 Kjell-Inge Gustafsson, kigkonsult, All rights reserved
  * @link      https://kigkonsult.se
- * @version   1.0
+ * @version   1.2
  * @license   Subject matter of licence is the software Sie4Ito5.
  *            The above copyright, link, package and version notices,
  *            this licence notice shall be included in all copies or substantial
@@ -29,11 +29,10 @@
 declare( strict_types = 1 );
 namespace Kigkonsult\Sie4Ito5;
 
-use DateTime;
-use Exception;
 use InvalidArgumentException;
 use Kigkonsult\Asit\It;
 use Kigkonsult\Sie4Ito5\Util\ArrayUtil;
+use Kigkonsult\Sie4Ito5\Util\DateTimeUtil;
 use Kigkonsult\Sie4Ito5\Util\FileUtil;
 use Kigkonsult\Sie4Ito5\Util\StringUtil;
 use Kigkonsult\Sie5Sdk\Dto\AccountingCurrencyType;
@@ -55,14 +54,15 @@ use Kigkonsult\Sie5Sdk\Dto\SoftwareProductType;
 use RuntimeException;
 
 use function array_map;
+use function array_pad;
 use function count;
 use function explode;
 use function in_array;
 use function is_array;
-use function is_file;
 use function is_string;
 use function ksort;
 use function sprintf;
+use function strcmp;
 use function trim;
 
 class Sie4Iparser implements Sie4IInterface
@@ -141,6 +141,19 @@ class Sie4Iparser implements Sie4IInterface
     private $input = null;
 
     /**
+     * @var bool
+     */
+    private $ksummaSet = false;
+
+    /**
+     * @return bool
+     */
+    public function isKsummaSet() : bool
+    {
+        return $this->ksummaSet;
+    }
+
+    /**
      * @var SieEntry
      */
     private $sieEntry = null;
@@ -155,11 +168,16 @@ class Sie4Iparser implements Sie4IInterface
     /**
      * Return instance
      *
+     * @param null|string|array $source
      * @return static
      */
-    public static function factory() : self
+    public static function factory( $source = null ) : self
     {
-        return new self();
+        $instance = new self();
+        if( ! empty( $source )) {
+            $instance->setInput( $source );
+        }
+        return $instance;
     }
 
     /**
@@ -174,90 +192,31 @@ class Sie4Iparser implements Sie4IInterface
         static $TRIM      = [ StringUtil::class, 'trimString' ];
         static $TAB2SPACE = [ StringUtil::class, 'tab2Space' ];
         static $FMT1      = 'Unvalid source';
-        switch( true ) {
-            case is_array( $source ) :
-                $input = $source;
-                break;
-            case ( ! is_string( $source )) :
+        if( is_array( $source )) {
+            $input = $source;
+        }
+        else {
+            if( ! is_string( $source )) {
                 throw new InvalidArgumentException( $FMT1, 1111 );
-            case is_file( $source ) :
+            }
+            $source = trim( $source );
+            if( ! StringUtil::startsWith( $source, self::FLAGGA )) {
                 FileUtil::assertReadFile((string) $source );
                 $input = FileUtil::readFile((string) $source );
-                break;
-            default :
+            }
+            else {
                 $input = StringUtil::string2Arr(
                     StringUtil::convEolChar((string) $source )
                 );
-                break;
-        } // end switch
-        $this->input = new It(
+            }
+        } // end else
+        $fileRowsIter = new It(
             array_map( $TRIM, array_map( $TAB2SPACE, $input ))
         );
-        $this->validateInput();
+        $isKsummaSet     = Sie4IValidator::validateInput( $fileRowsIter );
+        $this->input     = $fileRowsIter;
+        $this->ksummaSet = $isKsummaSet;
         return $this;
-    }
-
-    /**
-     * Validate #FLAGGA, #SIETYP == 4 and at least one #VER must exist (in order)
-     *
-     * @throws InvalidArgumentException
-     */
-    private function validateInput()
-    {
-        static $FMT1 = 'Input saknar poster';
-        static $FMT2 = 'Ogiltig 1:a post';
-        static $FMT3 = 'FLAGGpost saknas';
-        static $FOUR = '4';
-        static $FMT4 = 'SIETYP 4 saknas';
-        static $FMT5 = 'ORGNR saknas, krävs aV SieEntry';
-        static $FMT6 = '#VER saknas ';
-        if( empty( $this->input->count())) {
-            throw new InvalidArgumentException( $FMT1, 1211 );
-        }
-        $this->input->rewind();
-        if( ! $this->input->valid()) {
-            throw new InvalidArgumentException( $FMT2, 1212 );
-        }
-        $flaggaExist = $sieType4Exist = $orgNrExist = $verExist = false;
-        while( $this->input->valid()) {
-            $post = $this->input->current();
-            switch( true ) {
-                case empty( $post ) :
-                    break;
-                case StringUtil::startsWith( $post, self::FLAGGA ) :
-                    $flaggaExist = true;
-                    break;
-                case ( $flaggaExist &&
-                    StringUtil::startsWith( $post, self::SIETYP ) &&
-                    StringUtil::isIn( $FOUR, StringUtil::after( self::SIETYP, $post ))) :
-                    $sieType4Exist = true;
-                    break;
-                case ( $flaggaExist &&
-                    $sieType4Exist &&
-                    StringUtil::startsWith( $post, self::ORGNR )) :
-                    $orgNrExist = true;
-                    break;
-                case ( $flaggaExist &&
-                    $sieType4Exist &&
-                    $orgNrExist &&
-                    StringUtil::startsWith( $post, self::VER )) :
-                    $verExist = true;
-                    break;
-            } // end switch
-            $this->input->next();
-        } // end while
-        if( ! $flaggaExist ) {
-            throw new InvalidArgumentException( $FMT3, 1213 );
-        }
-        if( ! $sieType4Exist ) {
-            throw new InvalidArgumentException( $FMT4, 1214 );
-        }
-        if( ! $orgNrExist ) {
-            throw new InvalidArgumentException( $FMT5, 1215 );
-        }
-        if( ! $verExist ) {
-            throw new InvalidArgumentException( $FMT6, 1216 );
-        }
     }
 
     /**
@@ -266,10 +225,22 @@ class Sie4Iparser implements Sie4IInterface
     private function initSieEntry()
     {
         $this->sieEntry = sieEntry::factory()
-            ->setXMLattribute( SieEntry::XMLNS,              SieEntry::SIE5URI )
-            ->setXMLattribute( SieEntry::XMLNS_XSI,          SieEntry::XMLSCHEMAINSTANCE )
-            ->setXMLattribute( SieEntry::XMLNS_XSD,          SieEntry::XMLSCHEMA )
-            ->setXMLattribute( SieEntry::XSI_SCHEMALOCATION, SieEntry::SIE5SCHEMALOCATION )
+            ->setXMLattribute(
+                SieEntry::XMLNS,
+                SieEntry::SIE5URI
+            )
+            ->setXMLattribute(
+                SieEntry::XMLNS_XSI,
+                SieEntry::XMLSCHEMAINSTANCE
+            )
+            ->setXMLattribute(
+                SieEntry::XMLNS_XSD,
+                SieEntry::XMLSCHEMA
+            )
+            ->setXMLattribute(
+                SieEntry::XSI_SCHEMALOCATION,
+                SieEntry::SIE5SCHEMALOCATION
+            )
             ->setFileInfo(
                 FileInfoTypeEntry::factory()
                     ->setCompany( CompanyTypeEntry::factory())
@@ -281,18 +252,22 @@ class Sie4Iparser implements Sie4IInterface
      *
      * @param mixed $source
      * @return SieEntry
+     * @throws InvalidArgumentException
      * @throws RuntimeException
      */
     public function parse4I( $source = null ) : SieEntry
     {
-        static $FMT1 = 'Input error (#%d) on post %s';
+        static $FMT1     = 'Input error (#%d) on post %s';
+        static $GROUP12  = [ 1, 2 ];
+        static $GROUP23  = [ 2, 3 ];
+        static $GROUP234 = [ 2, 3, 4 ];
         if( ! empty( $source )) {
             $this->setInput( $source );
         }
         $this->initSieEntry();
         $this->input->rewind();
         $currentGroup = 0;
-        $post = $prevLabel = null;
+        $prevLabel    = $post = null;
         $this->postReadGroupActionKeys = [];
         while( $this->input->valid()) {
             $post = $this->input->current();
@@ -301,48 +276,50 @@ class Sie4Iparser implements Sie4IInterface
                 continue;
             }
             $post = StringUtil::cp437toUtf8( $post );
-            list( $label, $content ) = StringUtil::splitPost( $post );
+            list( $label, $rowData ) = StringUtil::splitPost( $post );
             switch( true ) {
                 case (( 0 === $currentGroup ) && ( self::FLAGGA == $label )) :
                     $currentGroup = 1;
                     break;
+                case ( self::KSUMMA == $label ) :
+                    break;
 
-                case ( in_array( $currentGroup, [ 1, 2 ] )
+                case ( in_array( $currentGroup, $GROUP12 )
                     && in_array( $label, self::$IDLABELS )) :
                     $currentGroup = 2;
-                    $this->readIdData( $label, $content );
+                    $this->readIdData( $label, $rowData );
                     break;
                 case (( 2 === $currentGroup ) && empty( $label )) :
                     // data content for previous Label
-                    $this->readIdData( $prevLabel, $content );
+                    $this->readIdData( $prevLabel, $rowData );
                     break;
 
-                case ( in_array( $currentGroup, [ 2, 3 ] )
+                case ( in_array( $currentGroup, $GROUP23 )
                     && in_array( $label, self::$ACCOUNTLABELS )) :
                     if( 2 == $currentGroup ) {
                         // finish off group 2 actions
                         $this->postReadGroupAction();
                         $currentGroup = 3;
                     }
-                    $this->readAccountData( $label, $content );
+                    $this->readAccountData( $label, $rowData );
                     break;
                 case (( 3 === $currentGroup ) && empty( $label )) :
                     // data content for previous Label
-                    $this->readAccountData( $prevLabel, $content );
+                    $this->readAccountData( $prevLabel, $rowData );
                     break;
 
-                case ( in_array( $currentGroup, [ 2, 3, 4 ] )
+                case ( in_array( $currentGroup, $GROUP234 )
                     && in_array( $label, self::$LEDGERENTRYLABELS )) :
-                    if( in_array( $currentGroup, [ 2, 3 ] )) {
+                    if( in_array( $currentGroup, $GROUP23 )) {
                         // finish off group (2-)3 actions
                         $this->postReadGroupAction();
                         $currentGroup = 4;
                     }
-                    $this->readLedgerEntryData( $label, $content );
+                    $this->readLedgerEntryData( $label, $rowData );
                     break;
                 case (( 4 === $currentGroup ) && empty( $label )) :
                     // data content for previous Label
-                    $this->readLedgerEntryData( $prevLabel, $content );
+                    $this->readLedgerEntryData( $prevLabel, $rowData );
                     break;
 
                 default :
@@ -357,9 +334,6 @@ class Sie4Iparser implements Sie4IInterface
             // finish off group 4 actions
             $this->postReadGroupAction();
         }
-        if( 4 !== $currentGroup ) {
-            throw new RuntimeException( sprintf( $FMT1, 2, $post ), 1414);
-        }
         return $this->sieEntry;
     }
 
@@ -370,12 +344,11 @@ class Sie4Iparser implements Sie4IInterface
      *   if 'sign' is missing, '#PROGRAM programnamn' is used
      *
      * @param string $label
-     * @param array  $content
+     * @param array  $rowData
      * @throws RuntimeException
      */
-    private function readIdData( string $label, array $content )
+    private function readIdData( string $label, array $rowData )
     {
-        static $FMT0 = '%s: %s, %s';
         $fileInfo = $this->sieEntry->getFileInfo();
         switch( $label ) {
             /**
@@ -385,10 +358,10 @@ class Sie4Iparser implements Sie4IInterface
              */
             case self::PROGRAM :
                 $fileInfo->setSoftwareProduct(
-                    SoftwareProductType::factoryNameVersion( $content[0], $content[1] )
+                    SoftwareProductType::factoryNameVersion( $rowData[0], $rowData[1] )
                 );
                 // prepare if missing #GEN sign
-                $this->postReadGroupActionKeys[self::GEN] = $content[0];
+                $this->postReadGroupActionKeys[self::GEN] = $rowData[0];
                 break;
 
             /**
@@ -409,25 +382,16 @@ class Sie4Iparser implements Sie4IInterface
              * Obligatorisk (sign opt)
              */
             case self::GEN :
-                try {
-                    $dateTime = new DateTime( $content[0] );
-                }
-                catch( Exception $e ) {
-                    $msg = sprintf( $FMT0, self::GEN, $content[0], $e->getMessage());
-                    throw new RuntimeException( $msg, 1511, $e );
-                }
-                if( ! ArrayUtil::arrayKeyExists( $content, 1 )) {
-                    $fileInfo->setFileCreation(
-                        FileCreationType::factory()->setTime( $dateTime )
-                    );
+                $dateTime = DateTimeUtil::getDateTime( $rowData[0], self::GEN, 1511 );
+                if( ! isset( $rowData[1] )) {
+                    $fileCreationType = FileCreationType::factory()->setTime( $dateTime );
                 }
                 else {
                     // undo #GEN prepare (above) due it is found
                     unset( $this->postReadGroupActionKeys[self::GEN] );
-                    $fileInfo->setFileCreation(
-                        FileCreationType::factoryByTime( $content[1], $dateTime )
-                    );
+                    $fileCreationType = FileCreationType::factoryByTime( $rowData[1], $dateTime );
                 }
+                $fileInfo->setFileCreation( $fileCreationType );
                 break;
 
             /**
@@ -468,7 +432,7 @@ class Sie4Iparser implements Sie4IInterface
              * valfri
              */
             case self::FNR :
-                $fileInfo->getCompany()->setClientId( $content[0] );
+                $fileInfo->getCompany()->setClientId( $rowData[0] );
                 break;
 
             /**
@@ -481,13 +445,9 @@ class Sie4Iparser implements Sie4IInterface
              */
             case self::ORGNR :
                 $company = $fileInfo->getCompany();
-                $company->setOrganizationId( $content[0] );
+                $company->setOrganizationId( $rowData[0] );
                 $company->setMultiple(
-                    (
-                        ArrayUtil::arrayKeyExists( $content, 1 )
-                            ? (int) $content[1]
-                            : 1
-                    )
+                    (( isset( $rowData[1] ) && ! empty( $rowData[1] )) ? (int) $rowData[1] : 1 )
                 );
                 break;
 
@@ -509,7 +469,7 @@ class Sie4Iparser implements Sie4IInterface
              */
             case self::FNAMN :
                 $company = $fileInfo->getCompany();
-                $company->setName( $content[0] );
+                $company->setName( $rowData[0] );
                 break;
 
             /**
@@ -550,7 +510,7 @@ class Sie4Iparser implements Sie4IInterface
              */
             case self::VALUTA :
                 $fileInfo->setAccountingCurrency(
-                    AccountingCurrencyType::factory()->setCurrency( $content[0] )
+                    AccountingCurrencyType::factoryCurrency( $rowData[0] )
                 );
                 break;
         } // end switch
@@ -563,9 +523,9 @@ class Sie4Iparser implements Sie4IInterface
      * #KONTO etc and #DIM/#OBJEKT : prepare for postGroup actions
      *
      * @param string $label
-     * @param array  $content
+     * @param array  $rowData
      */
-    private function readAccountData( string $label, array $content )
+    private function readAccountData( string $label, array $rowData )
     {
         switch( $label ) {
             /**
@@ -575,11 +535,16 @@ class Sie4Iparser implements Sie4IInterface
              * valfri
              */
             case self::KONTO :
-                if( ! isset( $this->postReadGroupActionKeys[self::KONTO][$content[0]] )) {
-                    $this->postReadGroupActionKeys[self::KONTO][$content[0]] = [];
-                }
-                // kontonr[0] = kontonamn
-                $this->postReadGroupActionKeys[self::KONTO][$content[0]][0] = $content[1];
+                ArrayUtil::assureIsArray(
+                    $this->postReadGroupActionKeys,
+                    self::KONTO
+                );
+                list( $kontonr, $kontonamn ) = $rowData;
+                ArrayUtil::assureIsArray(
+                    $this->postReadGroupActionKeys[self::KONTO],
+                    $kontonr
+                );
+                $this->postReadGroupActionKeys[self::KONTO][$kontonr][0] = $kontonamn;
                 break;
             /**
              * Kontotyp
@@ -588,11 +553,16 @@ class Sie4Iparser implements Sie4IInterface
              * valfri
              */
             case self::KTYP :
-                if( ! isset( $this->postReadGroupActionKeys[self::KONTO][$content[0]] )) {
-                    $this->postReadGroupActionKeys[self::KONTO][$content[0]] = [];
-                }
-                // kontonr[1] = kontotyp
-                $this->postReadGroupActionKeys[self::KONTO][$content[0]][1] = $content[1];
+                ArrayUtil::assureIsArray(
+                    $this->postReadGroupActionKeys,
+                    self::KONTO
+                );
+                list( $kontonr, $kontotyp ) = $rowData;
+                ArrayUtil::assureIsArray(
+                    $this->postReadGroupActionKeys[self::KONTO],
+                    $kontonr
+                );
+                $this->postReadGroupActionKeys[self::KONTO][$kontonr][1] = $kontotyp;
                 break;
 
             /**
@@ -602,11 +572,16 @@ class Sie4Iparser implements Sie4IInterface
              * valfri
              */
             case self::ENHET :
-                if( ! isset( $this->postReadGroupActionKeys[self::KONTO][$content[0]] )) {
-                    $this->postReadGroupActionKeys[self::KONTO][$content[0]] = [];
-                }
-                // kontonr[2] = enhet
-                $this->postReadGroupActionKeys[self::KONTO][$content[0]][2] = $content[1];
+                ArrayUtil::assureIsArray(
+                    $this->postReadGroupActionKeys,
+                    self::KONTO
+                );
+                list( $kontonr, $enhet ) = $rowData;
+                ArrayUtil::assureIsArray(
+                    $this->postReadGroupActionKeys[self::KONTO],
+                    $kontonr
+                );
+                $this->postReadGroupActionKeys[self::KONTO][$kontonr][2] = $enhet;
                 break;
 
             /**
@@ -625,15 +600,16 @@ class Sie4Iparser implements Sie4IInterface
              * valfri
              */
             case self::DIM :
-                if( ! isset( $this->postReadGroupActionKeys[self::DIM] )) {
-                    $this->postReadGroupActionKeys[self::DIM] = [];
-                }
-                $dimensionsnr = $content[0];
-                if( ! isset( $this->postReadGroupActionKeys[self::DIM][$dimensionsnr] )) {
-                    $this->postReadGroupActionKeys[self::DIM][$dimensionsnr] = [];
-                }
-                // dimensionsnr[0] => namn
-                $this->postReadGroupActionKeys[self::DIM][$dimensionsnr][0] = $content[1];
+                ArrayUtil::assureIsArray(
+                    $this->postReadGroupActionKeys,
+                    self::DIM
+                );
+                list( $dimensionsnr, $namn ) = $rowData;
+                ArrayUtil::assureIsArray(
+                    $this->postReadGroupActionKeys[self::DIM],
+                    $dimensionsnr
+                );
+                $this->postReadGroupActionKeys[self::DIM][$dimensionsnr][0] = $namn;
                 break;
 
             /**
@@ -652,18 +628,21 @@ class Sie4Iparser implements Sie4IInterface
              * valfri
              */
             case self::OBJEKT :
-                if( ! isset( $this->postReadGroupActionKeys[self::DIM] )) {
-                    $this->postReadGroupActionKeys[self::DIM] = [];
-                }
-                $dimensionsnr = $content[0];
-                if( ! isset( $this->postReadGroupActionKeys[self::DIM][$dimensionsnr] )) {
-                    $this->postReadGroupActionKeys[self::DIM][$dimensionsnr] = [];
-                }
-                if( ! isset( $this->postReadGroupActionKeys[self::DIM][$dimensionsnr][self::OBJEKT] )) {
-                    $this->postReadGroupActionKeys[self::DIM][$dimensionsnr][self::OBJEKT] = [];
-                }
-                // dimensionsnr[self::OBJEKT][objektnr] = objektnamn
-                $this->postReadGroupActionKeys[self::DIM][$dimensionsnr][self::OBJEKT][$content[1]] = $content[2];
+                ArrayUtil::assureIsArray(
+                    $this->postReadGroupActionKeys,
+                    self::DIM
+                );
+                list( $dimensionsnr, $objektnr, $objeknamn ) = $rowData;
+                ArrayUtil::assureIsArray(
+                    $this->postReadGroupActionKeys[self::DIM],
+                    $dimensionsnr
+                );
+                ArrayUtil::assureIsArray(
+                    $this->postReadGroupActionKeys[self::DIM][$dimensionsnr],
+                    self::OBJEKT
+                );
+                $this->postReadGroupActionKeys[self::DIM][$dimensionsnr][self::OBJEKT][$objektnr] =
+                    $objeknamn;
                 break;
         } // end switch
     }
@@ -680,12 +659,12 @@ class Sie4Iparser implements Sie4IInterface
      *   i.e. no support for 'hierarkiska dimensioner'
      *
      * @param string $label
-     * @param array  $content
+     * @param array  $rowData
      * @throws RuntimeException
      */
-    private function readLedgerEntryData( string $label, array $content )
+    private function readLedgerEntryData( string $label, array $rowData )
     {
-        if( in_array( $content[0], StringUtil::$CURLYBRACKETS )) {
+        if( in_array( $rowData[0], StringUtil::$CURLYBRACKETS )) {
             return;
         }
         switch( $label ) {
@@ -695,7 +674,7 @@ class Sie4Iparser implements Sie4IInterface
              * valfri
              */
             case self::VER :
-                $this->readLedgerEntryVERData( $content );
+                $this->readLedgerEntryVERData( $rowData );
                 break;
 
             /**
@@ -704,7 +683,7 @@ class Sie4Iparser implements Sie4IInterface
              * valfri
              */
             case self::TRANS :
-                $this->readLedgerEntryTRANSData( $content );
+                $this->readLedgerEntryTRANSData( $rowData );
                 break;
 
             /**
@@ -734,124 +713,145 @@ class Sie4Iparser implements Sie4IInterface
      *
      * #VER serie vernr verdatum vertext regdatum sign
      *
-     * @param array $content
+     * @param array $rowData
      */
-    private function readLedgerEntryVERData( array $content )
+    private function readLedgerEntryVERData( array $rowData )
     {
-        static $FMT0 = '%s, %s';
-        // check if journal id exists
+        if( 6 > count( $rowData )) {
+            $rowData = array_pad( $rowData, 6, null );
+        }
+        list( $serie, $vernr, $verdatum, $vertext, $regdatum, $sign ) = $rowData;
+        $journalTypeEntry = $this->getJournalTypeEntry( $serie );
+        // save for later #TRANS use
+        $this->currentJournalEntryTypeEntry = JournalEntryTypeEntry::factory();
+        if( ! empty( $vernr )) {
+            $this->currentJournalEntryTypeEntry->setId((int) $vernr );
+        }
+        $dateTime = DateTimeUtil::getDateTime( $verdatum, self::VER, 1711 );
+        $this->currentJournalEntryTypeEntry->setJournalDate( $dateTime );
+        if( ! empty( $vertext )) {
+            $this->currentJournalEntryTypeEntry->setText( $vertext );
+        }
+
+        $journalTypeEntry->addJournalEntry( $this->currentJournalEntryTypeEntry );
+        $dateTime = empty( $regdatum )
+            // if missing, set same as verdatum
+            ? clone $dateTime
+            : DateTimeUtil::getDateTime( $regdatum, self::VER, 1712 );
+
+        if( empty( $sign )) {
+            // fetch sign from #GEN
+            $sign = $this->sieEntry->getFileInfo()->getFileCreation()->getBy();
+        }
+        $this->currentJournalEntryTypeEntry->setOriginalEntryInfo(
+            OriginalEntryInfoType::factoryByDate( $sign, $dateTime )
+        );
+    }
+
+    /**
+     * @param string $serie
+     * @return JournalTypeEntry
+     */
+    private function getJournalTypeEntry( string $serie ) : JournalTypeEntry
+    {
         $journalTypeEntryFound = false;
         $journalTypeEntry      = null;
         $journals = $this->sieEntry->getJournal();
         if( ! empty( $journals )) {
             foreach( $journals as $journalTypeEntry ) {
                 $journalTypeEntryId = $journalTypeEntry->getId();
-                if( empty( $content[0] ) && empty( $journalTypeEntryId )) {
+                if( empty( $serie ) && empty( $journalTypeEntryId )) {
                     $journalTypeEntryFound = true;
                     break;
                 }
-                if( $content[0] == $journalTypeEntryId ) {
+                if( 0 === strcmp( $serie, (string) $journalTypeEntryId )) {
                     $journalTypeEntryFound = true;
                     break;
                 }
             } // end foreach
         } // end if
         if( ! $journalTypeEntryFound ) {
+            // create if NOT exists
             $journalTypeEntry = JournalTypeEntry::factory();
             $this->sieEntry->addJournal( $journalTypeEntry );
-            if( ! empty( $content[0] )) {
-                $journalTypeEntry->setId( $content[0] );
+            if( ! empty( $serie )) {
+                $journalTypeEntry->setId( $serie );
             }
         } // end if
-
-        // save for later #TRANS use
-        $this->currentJournalEntryTypeEntry = JournalEntryTypeEntry::factory();
-        if( ! empty( $content[1] )) {
-            $this->currentJournalEntryTypeEntry->setId((int) $content[1] );
-        }
-        try {
-            $dateTime = new DateTime( $content[2] );
-        }
-        catch( Exception $e ) {
-            $msg = sprintf( $FMT0, self::VER, $content[2], $e->getMessage());
-            throw new RuntimeException( $msg, 1711, $e );
-        }
-        $this->currentJournalEntryTypeEntry->setJournalDate( $dateTime );
-        if( ArrayUtil::arrayKeyExists( $content, 3 )) {
-            $this->currentJournalEntryTypeEntry->setText( $content[3] );
-        }
-
-        $journalTypeEntry->addJournalEntry( $this->currentJournalEntryTypeEntry );
-        if( ArrayUtil::arrayKeyExists( $content, 4 )) {
-            try {
-                $dateTime = new DateTime( $content[4] );
-            }
-            catch( Exception $e ) {
-                $msg = sprintf( $FMT0, self::VER, $content[4], $e->getMessage());
-                throw new RuntimeException( $msg, 1712, $e );
-            }
-        } // end if
-        else {
-            // if missing, set same as verdatum
-            $dateTime = clone $dateTime;
-        }
-
-        if( ! ArrayUtil::arrayKeyExists( $content, 5 )) {
-            // fetch sign from #GEN
-            $content[5] = $this->sieEntry->getFileInfo()->getFileCreation()->getBy();
-        }
-        $this->currentJournalEntryTypeEntry->setOriginalEntryInfo(
-            OriginalEntryInfoType::factoryByDate( $content[5], $dateTime )
-        );
+        return $journalTypeEntry;
     }
 
     /**
      * Manage #TRANS data
      *
      * #TRANS kontonr {objektlista} belopp transdat(opt) transtext(opt) kvantitet sign
+     * sign skipped
      *
-     * @param array $content
+     * @param array $rowData
      */
-    private function readLedgerEntryTRANSData( array $content )
+    private function readLedgerEntryTRANSData( array $rowData )
     {
-        static $FMT0          = '%s, %s';
+        if( 7 > count( $rowData )) {
+            $rowData = array_pad( $rowData, 7, null );
+        }
+        list(
+            $kontonr,
+            $objektlista,
+            $belopp,
+            $transdat,
+            $transtext,
+            $kvantitet,
+            $sign
+        )  = $rowData;
+
         // $this->currentJournalEntryTypeEntry holds current journalEntryTypeEntry
         // created in #VER
         $ledgerEntryTypeEntry = LedgerEntryTypeEntry::factory();
         $this->currentJournalEntryTypeEntry->addLedgerEntry( $ledgerEntryTypeEntry );
-        $ledgerEntryTypeEntry->setAccountId( $content[0] );
-        // {objektlista} pairs of dimId/objectId
-        if( ! empty( $content[1] )) {
-            $dimObjList = explode( StringUtil::$SP1, trim( $content[1] ));
-            $len        = count( $dimObjList ) - 1;
-            for( $x1 = 0; $x1 < $len; $x1 += 2 ) {
-                $x2     = $x1 + 1;
-                $ledgerEntryTypeEntry->addLedgerEntryTypeEntry(
-                    LedgerEntryTypeEntry::OBJECTREFERENCE,
-                    ObjectReferenceType::factory()
-                        ->setDimId( $dimObjList[$x1] )
-                        ->setObjectId( $dimObjList[$x2] )
-                );
-            } // end for
+
+        $ledgerEntryTypeEntry->setAccountId( $kontonr );
+        self::updObjektlista( $ledgerEntryTypeEntry, $objektlista );
+        $ledgerEntryTypeEntry->setAmount( $belopp );
+        if( ! empty( $transdat )) {
+            $ledgerEntryTypeEntry->setLedgerDate(
+                DateTimeUtil::getDateTime( $transdat, self::TRANS, 1713 )
+            );
         } // end if
-        $ledgerEntryTypeEntry->setAmount( $content[2] );
-        if( ArrayUtil::arrayKeyExists( $content, 3 )) {
-            try {
-                $dateTime = new DateTime( $content[3] );
-            }
-            catch( Exception $e ) {
-                $msg = sprintf( $FMT0, self::TRANS, $content[3], $e->getMessage());
-                throw new RuntimeException( $msg, 1713, $e );
-            }
-            $ledgerEntryTypeEntry->setLedgerDate( $dateTime );
-        } // end if
-        if( ArrayUtil::arrayKeyExists( $content, 4 )) {
-            $ledgerEntryTypeEntry->setText( $content[4] );
+        if( ! empty( $transtext )) {
+            $ledgerEntryTypeEntry->setText( $transtext );
         }
-        if( ArrayUtil::arrayKeyExists( $content, 5 )) {
-            $ledgerEntryTypeEntry->setQuantity( $content[5] );
+        if( null !== $kvantitet ) {
+            $ledgerEntryTypeEntry->setQuantity( $kvantitet );
         }
         // skip sign
+    }
+
+    /**
+     * Update ObjectReferences from objektlista, pairs of dimId/objectId
+     *
+     * @param LedgerEntryTypeEntry $ledgerEntryTypeEntry
+     * @param string               $objektlista
+     */
+    private static function updObjektlista(
+        LedgerEntryTypeEntry $ledgerEntryTypeEntry,
+        string $objektlista
+    )
+    {
+        if( empty( $objektlista )) {
+            return;
+        } // end if
+        $dimObjList = explode( StringUtil::$SP1, trim( $objektlista ));
+        $len        = count( $dimObjList ) - 1;
+        for( $x1 = 0; $x1 < $len; $x1 += 2 ) {
+            $x2     = $x1 + 1;
+            $ledgerEntryTypeEntry->addLedgerEntryTypeEntry(
+                LedgerEntryTypeEntry::OBJECTREFERENCE,
+                ObjectReferenceType::factoryDimIdObjectId(
+                    $dimObjList[$x1],
+                    $dimObjList[$x2]
+                )
+            );
+        } // end for
     }
 
     /**
@@ -950,7 +950,10 @@ class Sie4Iparser implements Sie4IInterface
                 throw new RuntimeException( $FMT2 . $kontoNr, 1822 );
             }
             if( ! isset( $KONTOTYPER[$kontoData[1]] )) {
-                throw new RuntimeException( sprintf( $FMT3, $kontoNr, $kontoData[1] ), 1823 );
+                throw new RuntimeException(
+                    sprintf( $FMT3, $kontoNr, $kontoData[1] ),
+                    1823
+                );
             }
             $accountTypeEntry = AccountTypeEntry::factoryIdNameType(
                 (string) $kontoNr,

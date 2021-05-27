@@ -7,7 +7,7 @@
  author    Kjell-Inge Gustafsson, kigkonsult
  copyright 2021 Kjell-Inge Gustafsson, kigkonsult, All rights reserved
  link      https://kigkonsult.se
- version   1.0
+ version   1.2
  license   Subject matter of licence is the software Sie4Ito5.
            The above copyright, link, package and version notices,
            this licence notice shall be included in all copies or substantial
@@ -46,12 +46,14 @@
                 addUncoveredFilesFromWhitelist='true'
                 processUncoveredFilesFromWhitelist="true">
             <file>./src/Sie4I.php</file>
-            <file>./src/Sie4Iparser.php</file>
-            <file>./src/Sie4Iwriter.php</file>
             <file>./src/Sie4IInterface.php</file>
-            <file>./src/ArrayUtil.php</file>
-            <file>./src/FileUtil.php</file>
-            <file>./src/StringUtil.php</file>
+            <file>./src/Sie4Iparser.php</file>
+            <file>./src/Sie4IValidator.php</file>
+            <file>./src/Sie4Iwriter.php</file>
+            <file>./src/Util/ArrayUtil.php</file>
+            <file>./src/Util/DateTimeUtil.php</file>
+            <file>./src/Util/FileUtil.php</file>
+            <file>./src/Util/StringUtil.php</file>
         </whitelist>
     </filter>
   <logging>

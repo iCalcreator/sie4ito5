@@ -30,7 +30,7 @@
       <LedgerEntry accountId="3740" amount="-0.25" />
       <LedgerEntry accountId="1510" amount="3794.00" />
     </JournalEntry>
-    <JournalEntry id="102" journalDate="2014-07-14" text="Ivans Studio">
+    <JournalEntry id="102" journalDate="2014-07-14" text="Ivans Studio &quot;iStudio&quot;">
       <OriginalEntryInfo date="2014-07-14" by="TH" />
       <LedgerEntry accountId="3020" amount="-28000.00" />
       <LedgerEntry accountId="2610" amount="-7000.00" />
