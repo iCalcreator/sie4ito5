@@ -6,7 +6,7 @@
   <FileInfo>
     <SoftwareProduct name="Edison Ekonomi Byrå" version="5.0"/>
     <FileCreation time="2015-10-30T11:45:00Z" by="Fingal Olson"/>
-    <Company organizationId="631108-4013"/>
+    <Company name="Acme Corp" organizationId="631108-4013"/>
   </FileInfo>
   <Accounts>
     <Account id="1510" name="Kundfordringar" type="asset" />

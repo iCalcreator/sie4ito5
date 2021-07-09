@@ -25,38 +25,32 @@
  *            along with Sie4Ito5. If not, see <https://www.gnu.org/licenses/>.
  */
 declare( strict_types = 1 );
-namespace Kigkonsult\Sie4Ito5\Util;
+namespace Kigkonsult\Sie4Ito5\Api;
 
-use DateTime;
-use Exception;
-use RuntimeException;
+use InvalidArgumentException;
+use Kigkonsult\Sie4Ito5\Dto\Sie4IDto;
 
-use function sprintf;
+use function json_decode;
 
-class DateTimeUtil
+/**
+ * Class Json2Sie4IDto
+ *
+ * Transform input json string to Sie4IDto
+ */
+class Json2Sie4IDto
 {
-
     /**
-     * @param string $dateTimeString
-     * @param string $label
-     * @param int    $errCode
-     * @return DateTime
-     * @throw RuntimeException
+     * @param string $json
+     * @return Sie4IDto
+     * @throws InvalidArgumentException
      */
-    public static function getDateTime( string $dateTimeString, string $label, int $errCode ) : DateTime
+    public static function process( string $json ) : Sie4IDto
     {
-        static $FMT0 = '%s : %s, %s';
-        try {
-            $dateTime = new DateTime( $dateTimeString );
+        static $ERR1 = 'json string to array error, ';
+        $sie4IArray = json_decode( $json, true, 512, JSON_OBJECT_AS_ARRAY );
+        if( ! is_array( $sie4IArray )) {
+            throw new InvalidArgumentException( $ERR1 . json_last_error_msg(), 4001 ) ;
         }
-        catch( Exception $e ) {
-            throw new RuntimeException(
-                sprintf( $FMT0, $label, $dateTimeString, $e->getMessage()),
-                $errCode,
-                $e
-            );
-        }
-        return $dateTime;
+        return Array2Sie4IDto::process( $sie4IArray );
     }
-
 }

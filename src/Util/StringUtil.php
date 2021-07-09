@@ -1,17 +1,15 @@
 <?php
 /**
- * Sie4Ito5   PHP Sie 4I to 5 conversion package
+ * Sie4Ito5   PHP Sie4I SDK and Sie5 conversion package
  *
  * This file is a part of Sie4Ito5
  *
  * @author    Kjell-Inge Gustafsson, kigkonsult
  * @copyright 2021 Kjell-Inge Gustafsson, kigkonsult, All rights reserved
  * @link      https://kigkonsult.se
- * @version   1.2
  * @license   Subject matter of licence is the software Sie4Ito5.
- *            The above copyright, link, package and version notices,
- *            this licence notice shall be included in all copies or substantial
- *            portions of the Sie4Ito5.
+ *            The above package, copyright, link and this licence notice shall be
+ *            included in all copies or substantial portions of the Sie4Ito5.
  *
  *            Sie4Ito5 is free software: you can redistribute it and/or modify
  *            it under the terms of the GNU Lesser General Public License as
@@ -52,6 +50,7 @@ class StringUtil
     public static $SP1  = ' ';
     public static $CURLYBRACKETS = [ '{', '}' ];
     public static $QUOTE = '"';
+    public static $DOUBLEQUOTE = '""';
 
     /**
      * Encoding charsets
@@ -93,7 +92,7 @@ class StringUtil
             throw new RuntimeException(
 //              sprintf( self::$FMT1, $msg, self::$UTF8, self::$CP437 . self::$IGNORE, $string ),
                 sprintf( self::$FMT1, $msg, self::$UTF8, self::$CP437, $string ),
-                6111
+                14111
             );
         }
         return $output;
@@ -122,12 +121,11 @@ class StringUtil
             throw new RuntimeException(
 //              sprintf( self::$FMT1, $msg, self::$CP437, self::$UTF8 . self::$IGNORE, $string ),
                 sprintf( self::$FMT1, $msg, self::$CP437, self::$UTF8, $string ),
-                6211
+                14211
             );
         }
         return $output;
     }
-
 
     /**
      * Convert all EOLs to PHP_EOL, alter double eols to single ones
@@ -209,6 +207,20 @@ class StringUtil
     public static function curlyBacketsString( string $string ) : string
     {
         return self::$CURLYBRACKETS[0] . trim( $string ) . self::$CURLYBRACKETS[1];
+    }
+
+    /**
+     * Rtrim trailing ' ""' from Sie4I-row
+     *
+     * @param string $string
+     * @return string
+     */
+    public static function d2qRtrim( string $string ) : string
+    {
+        while( self::$DOUBLEQUOTE == substr( $string, -2 )) {
+            $string = substr( $string, 0, -3 );
+        }
+        return $string;
     }
 
     /**

@@ -1,0 +1,178 @@
+
+Sie4Ito5   PHP Sie 4I to 5 conversion package
+
+This file is a part of Sie4Ito5
+
+author    Kjell-Inge Gustafsson, kigkonsult
+copyright 2021 Kjell-Inge Gustafsson, kigkonsult, All rights reserved
+link      https://kigkonsult.se
+license   Subject matter of licence is the software Sie4Ito5.
+          The above package, copyright, link and this licence notice shall be
+          included in all copies or substantial portions of the Sie4Ito5.
+
+          Sie4Ito5 is free software: you can redistribute it and/or modify
+          it under the terms of the GNU Lesser General Public License as
+          published by the Free Software Foundation, either version 3 of
+          the License, or (at your option) any later version.
+
+          Sie4Ito5 is distributed in the hope that it will be useful,
+          but WITHOUT ANY WARRANTY; without even the implied warranty of
+          MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+          GNU Lesser General Public License for more details.
+
+          You should have received a copy of the GNU Lesser General Public License
+          along with Sie4Ito5. If not, see <https://www.gnu.org/licenses/>.
+
+Here is a Sie4I - Sie4IDto - array mapping scheme.
+All (most) object properties has get-/set-/is<Property>Set methods.
+Array properties has also count-/add<Property) methods.
+To support one-liners, class factory-methods are defined.
+
+You can find usefull constants in the Sie4IInterface.
+
+===============================================================================
+Sie4I label           comment     Sie4IDto::idDto            array element key
+      subField                    IdDto property
+===============================================================================
+
+#FLAGGA
+      x               skipped, default 0
+
+#PROGRAM
+      programnamn                 programnamn                PROGRAMNAMN
+      version                     version                    PROGRAMVERSION
+
+#FORMAT
+      PC8             skipped, default 'PC8'
+
+#GEN
+      datum                       getDate                    GENDATUM
+      sign                        genSign                    GENSIGN
+
+#SIETYP
+      typnr           skipped, default '4'
+
+#PROSA
+      text            skipped
+
+#FTYP
+      Företagstyp     skipped
+
+#FNR
+      företagsid                  fnrId                      FNRID
+
+#ORGNR
+      orgnr                       orgnr                      ORGNRORGNR
+      förvnr                      multiple                   ORGNRFORNVR
+      verknr          skipped
+
+#ADRESS
+      kontakt         skipped
+      utdelningsadr   skipped
+      postadr         skipped
+      tel             skipped
+
+#FNAMN
+      företagsnamn                fnamn                      FNAMN
+
+#RAR
+      årsnr           skipped
+      start           skipped
+      slut            skipped
+
+#TAXAR
+      år              skipped
+
+#KPTYP
+      typ             skipped
+
+#VALUTA
+      valutakod                   valutakod                  VALUTAKOD
+
+
+===============================================================================
+Sie4I label           comment     Sie4IDto::accountDtos[]    array element key
+      subField                    AccountDto property
+===============================================================================
+
+#KONTO
+      kontonr                     kontoNr                    KONTONR
+      kontoNamn                   kontoNamn                  KONTONAMN
+
+#KTYP kontonr
+      kontoTyp                    kontoTyp                   KONTOTYP
+
+#ENHET
+      kontonr
+      enhet                       enhet                      KONTOENHET
+
+#SRU  konto           skipped
+      SRU-kod         skipped
+
+
+===============================================================================
+Sie4I
+      label           comment     Sie4IDto::dimDtos[]        array element key
+      subField                    DimDto property
+===============================================================================
+
+#DIM
+      dimensionsnr                dimensionsNr               DIMENSIONNR
+      namn                        dimensionsNamn             DIMENSIONNAMN
+
+#UNDERDIM
+      dimensionsnr    skipped
+      namn            skipped
+      superdimension  skipped
+
+
+===============================================================================
+Sie4I
+      label           comment     Sie4IDto::dimObjektDtos[]  array element key
+      subField                    DimObjektDto property
+===============================================================================
+
+#OBJEKT
+      dimensionsnr                dimensionsNr               OBJEKTDIMENSIONNR
+      objektnr                    objektNr                   OBJEKTNR
+      objektnamn                  objektnamn                 OBJEKTNAMN
+
+
+===============================================================================
+#RTRANS               skipped
+#BTRANS               skipped
+===============================================================================
+
+
+===============================================================================
+Sie4I
+      label           comment     Sie4IDto::verDtos[]        array element key
+      subField                    VerDto property
+===============================================================================
+
+#VER
+      serie                       serie                      VERSERIE
+      vernr                       vernr                      VERNR
+      verdatum                    verdatum                   VERDATUM
+      vertext                     vertext                    VERTEXT
+      regdatum                    regdatum                   REGDATUM
+      sign                        sign                       VERSIGN
+
+
+===============================================================================
+Sie4I
+      label           comment     Sie4IDto::verDtos[]        array element key
+      subField                    VerDto::transDtos[]
+                                  TransDto property
+===============================================================================
+
+#TRANS
+      kontonr                     kontoNr                    TRANSKONTONR
+      objektlista                 objektlista
+                      array of DimObjektDto, above           TRANSDIMENSIONNR
+                                                             TRANSOBJEKTNR
+      belopp                      belopp                     BELOPP
+      transdat                    transdat                   TRANSDAT
+      transtext                   transtext                  TRANSTEXT
+      kvantitet                   kvantitet                  KVANTITET
+      sign                        sign                       TRANSSIGN

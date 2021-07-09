@@ -1,17 +1,15 @@
 <?php
 /**
- * Sie4Ito5   PHP Sie 4I to 5 conversion package
+ * Sie4Ito5   PHP Sie4I SDK and Sie5 conversion package
  *
  * This file is a part of Sie4Ito5
  *
  * @author    Kjell-Inge Gustafsson, kigkonsult
  * @copyright 2021 Kjell-Inge Gustafsson, kigkonsult, All rights reserved
  * @link      https://kigkonsult.se
- * @version   1.2
  * @license   Subject matter of licence is the software Sie4Ito5.
- *            The above copyright, link, package and version notices,
- *            this licence notice shall be included in all copies or substantial
- *            portions of the Sie4Ito5.
+ *            The above package, copyright, link and this licence notice shall be
+ *            included in all copies or substantial portions of the Sie4Ito5.
  *
  *            Sie4Ito5 is free software: you can redistribute it and/or modify
  *            it under the terms of the GNU Lesser General Public License as

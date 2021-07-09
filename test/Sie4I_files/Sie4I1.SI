@@ -53,8 +53,8 @@
 #TRANS 1910 {} -56800.00
 }
 
-#VER A 569 20081216 "extra \"=citationtecken"
+#VER A 569 20081216 "extra \"=citationtecken" 20081215 "anySign 1"
 {
-#TRANS 7010 {"1" "456" "6" "47"} 56900.00
-#TRANS 1910 {} -56900.00
+#TRANS 7010 {"1" "456" "6" "47"} 56900.00 20081215 "transtext 1" 10 "anySign 2"
+#TRANS 1910 {} -56900.00 20081215 "transtext 2" 10 "anySign 2"
 }

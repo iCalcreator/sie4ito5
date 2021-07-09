@@ -1,17 +1,15 @@
 <?php
 /**
- * Sie4Ito5   PHP Sie 4I to 5 conversion package
+ * Sie4Ito5   PHP Sie4I SDK and Sie5 conversion package
  *
  * This file is a part of Sie4Ito5
  *
  * @author    Kjell-Inge Gustafsson, kigkonsult
  * @copyright 2021 Kjell-Inge Gustafsson, kigkonsult, All rights reserved
  * @link      https://kigkonsult.se
- * @version   1.2
  * @license   Subject matter of licence is the software Sie4Ito5.
- *            The above copyright, link, package and version notices,
- *            this licence notice shall be included in all copies or substantial
- *            portions of the Sie4Ito5.
+ *            The above package, copyright, link and this licence notice shall be
+ *            included in all copies or substantial portions of the Sie4Ito5.
  *
  *            Sie4Ito5 is free software: you can redistribute it and/or modify
  *            it under the terms of the GNU Lesser General Public License as
@@ -35,11 +33,14 @@ Interface Sie4IInterface
      * Product constants
      */
     const PRODUCTNAME              = 'Kigkonsult\Sie4Ito5';
-    const PRODUCTVERSION           = '1,0';
+    const PRODUCTVERSION           = '1.2';
 
     /**
-     * Sie4 etiketter
-     * Varje etikett avslutas med space
+     * Constants for Sie4 labels and sub-labels values
+     * as defined in 'SIE filformat - Utgåva 4B'.
+     * ALL constant values in upper case.
+     * If lable has only one sub-field, NO sub-label defined
+     * For skipped lables, no sub-lables defined
      */
 
     /**
@@ -48,6 +49,7 @@ Interface Sie4IInterface
 
      /**
       * Flaggpost som anger om filen tagits emot av mottagaren
+      * obligatorisk i Sie4I
       */
     const FLAGGA                   = '#FLAGGA';
 
@@ -57,85 +59,107 @@ Interface Sie4IInterface
 
      /**
       * Vilket program som genererat filen
+      * #PROGRAM programnamn version
+      * obligatorisk
       */
     const PROGRAM                  = '#PROGRAM';
+    const PROGRAMNAMN              = 'PROGRAMNAMN';
+    const PROGRAMVERSION           = 'PROGRAMVERSION';
 
      /**
       * Vilken teckenuppsättning som använts
       *
       * SKA vara IBM PC 8-bitars extended ASCII (Codepage 437)
       * https://en.wikipedia.org/wiki/Code_page_437
+      * obligatorisk i Sie4I, auto
       */
     const FORMAT                   = '#FORMAT';
 
      /**
       * När och av vem som filen genererats
+      * #GEN datum sign
+      * Obligatorisk (sign opt) Sie4I, båda obl. Sie5 SieEntry
       */
     const GEN                      = '#GEN';
+    const GENDATUM                 = 'GENDATUM';
+    const GENSIGN                  = 'GENSIGN';
 
      /**
       * Vilken typ av SIE-formatet filen följer
+      * obligatorisk, auto i Sie4I : 4
       */
     const SIETYP                   = '#SIETYP';
 
      /**
       * Fri kommentartext kring filens innehåll
-      * valfri
+      * valfri, ignoreras
       */
     const PROSA                    = '#PROSA';
 
      /**
       * Företagstyp
-      * valfri
+      * valfri, ignoreras
       */
     const FTYP                     = '#FTYP';
 
      /**
       * Redovisningsprogrammets internkod för exporterat företag
+      * #FNR företagsid
       * valfri
       */
     const FNR                      = '#FNR';
+    const FNRID                    = 'FNRID';
 
      /**
       * Organisationsnummer för det företag som exporterats
-      * valfri
+      * #ORGNR orgnr förvnr verknr
+      * förvnr : anv då ensk. person driver flera ensk. firmor (ordningsnr)
+      * verknr : anv ej
+      * valfri i sie4IDto, obl (orgnr) i SirEntry
       */
     const ORGNR                    = '#ORGNR';
+    const ORGNRORGNR               = 'ORGNRORGNR';
+    const ORGNRFORNVR              = 'ORGNRFORNVR';
 
      /**
       * Adressuppgifter för det aktuella företaget
-      * valfri
+      * valfri, ignoreras
       */
     const ADRESS                   = '#ADRESS';
 
      /**
       * Fullständigt namn för det företag som exporterats
+      * #FNAMN företagsnamn
+      * Obligatorisk i Sie4I, valfri i SieEntry
       */
     const FNAMN                    = '#FNAMN';
+    const FTGNAMN                  = 'FNAMN';
 
      /**
       * Räkenskapsår från vilket exporterade data hämtats
-      * valfri
+      * valfri, ignoreras
       */
     const RAR                      = '#RAR';
 
      /**
       * Taxeringsår för deklarations- information (SRU-koder)
-      * valfri
+      * valfri, ignoreras
       */
     const TAXAR                    = '#TAXAR';
 
      /**
       * Kontoplanstyp
-      * valfri
+      * valfri, ignoreras
       */
     const KPTYP                    = '#KPTYP';
 
      /**
       * Redovisningsvaluta
+      * #VALUTA valutakod
       * valfri
       */
     const VALUTA                   = '#VALUTA';
+    const VALUTAKOD                = 'VALUTAKOD';
 
 
     /**
@@ -144,45 +168,59 @@ Interface Sie4IInterface
 
      /**
       * Kontouppgifter
+      * #KONTO kontonr kontonamn
       * valfri
       */
     const KONTO                    = '#KONTO';
+    const KONTONR                  = 'KONTONR';
+    const KONTONAMN                = 'KONTONAMN';
 
      /**
       * Kontotyp
+      * #KTYP kontonr  kontoTyp
       * valfri
       */
     const KTYP                     = '#KTYP';
+    const KONTOTYP                 = 'KONTOTYP';
 
      /**
       * Enhet vid kvantitetsredovisning
+      * #ENHET kontonr enhet
       * valfri
       */
     const ENHET                    = '#ENHET';
+    const KONTOENHET               = 'KONTOENHET';
 
      /**
       * RSV-kod för standardiserat räkenskapsutdrag
-      * valfri
+      * valfri, ignoreras
       */
     const SRU                      = '#SRU';
 
      /**
       * Dimension
+      * #DIM dimensionsnr namn
       * valfri
       */
     const DIM                      = '#DIM';
+    const DIMENSIONNR              = 'DIMENSIONNR';
+    const DIMENSIONNAMN            = 'DIMENSIONNAMN';
 
      /**
       * Underdimension
-      * valfri
+      * valfri, ignoreras
       */
     const UNDERDIM                 = '#UNDERDIM';
 
      /**
       * Objekt
+      * #OBJEKT dimensionsnr objektnr objektnamn
       * valfri
       */
     const OBJEKT                   = '#OBJEKT';
+    const OBJEKTDIMENSIONNR        = 'OBJEKTDIMENSIONNR';
+    const OBJEKTNR                 = 'OBJEKTNR';
+    const OBJEKTNAMN               = 'OBJEKTNAMN';
 
     /**
      * Saldoposter/Verifikationsposter
@@ -190,25 +228,44 @@ Interface Sie4IInterface
 
      /**
       * Verifikationspost
-      * valfri
+      * #VER serie vernr verdatum vertext regdatum sign
+      * Obligatorisk
+      * Enbart verdatum obligatoriskt
+      * auto-gen (now) om det saknas i Sie4I
       */
     const VER                      = '#VER';
+    const VERSERIE                 = 'VERSERIE';
+    const VERNR                    = 'VERNR';
+    const VERDATUM                 = 'VERDATUM';
+    const VERTEXT                  = 'VERTEXT';
+    const REGDATUM                 = 'REGDATUM';
+    const VERSIGN                  = 'VERSIGN';
 
      /**
       * Transaktionspost
-      * valfri
+      * valfri enl Sie4I-pdf, obl i importfil
+      * #TRANS kontonr {objektlista} belopp transdat(opt) transtext(opt) kvantitet sign
+      * Obligatoriskt : kontonr/belopp
       */
     const TRANS                    = '#TRANS';
+    const TRANSKONTONR             = 'TRANSKONTONR';
+    const TRANSDIMENSIONNR         = 'TRANSDIMENSIONNR';
+    const TRANSOBJEKTNR            = 'TRANSOBJEKTNR';
+    const BELOPP                   = 'BELOPP';
+    const TRANSDAT                 = 'TRANSDAT';
+    const TRANSTEXT                = 'TRANSTEXT';
+    const KVANTITET                = 'KVANTITET';
+    const TRANSSIGN                = 'TRANSSIGN';
 
      /**
       * Tillagd transaktionspost
-      * valfri
+      * valfri, ignoreras
       */
     const RTRANS                   = '#RTRANS';
 
      /**
       * Borttagen transaktionspost
-      * valfri
+      * valfri, ignoreras
       */
     const BTRANS                   = '#BTRANS';
 

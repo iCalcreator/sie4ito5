@@ -1,17 +1,15 @@
 <?php
 /**
- * Sie4Ito5   PHP Sie 4I to 5 conversion package
+ * Sie4Ito5   PHP Sie4I SDK and Sie5 conversion package
  *
  * This file is a part of Sie4Ito5
  *
  * @author    Kjell-Inge Gustafsson, kigkonsult
  * @copyright 2021 Kjell-Inge Gustafsson, kigkonsult, All rights reserved
  * @link      https://kigkonsult.se
- * @version   1.2
  * @license   Subject matter of licence is the software Sie4Ito5.
- *            The above copyright, link, package and version notices,
- *            this licence notice shall be included in all copies or substantial
- *            portions of the Sie4Ito5.
+ *            The above package, copyright, link and this licence notice shall be
+ *            included in all copies or substantial portions of the Sie4Ito5.
  *
  *            Sie4Ito5 is free software: you can redistribute it and/or modify
  *            it under the terms of the GNU Lesser General Public License as
@@ -29,17 +27,55 @@
 declare( strict_types = 1 );
 namespace Kigkonsult\Sie4Ito5\Util;
 
+use function array_change_key_case;
+use function array_map;
+use function array_pad;
+use function is_array;
+use function count;
+
 class ArrayUtil
 {
     /**
      * @param array  $array
-     * @param string $key
+     * @param string|array $key
      */
-    public static function assureIsArray( array & $array, string $key )
+    public static function assureIsArray( array & $array, $key )
     {
-        if( ! isset( $array[$key] )) {
-            $array[$key] = [];
+        foreach((array) $key as $k ) {
+            if( ! isset( $array[$k] ) ) {
+                $array[$k] = [];
+            }
         }
+    }
+
+    /**
+     * @param array  $array
+     * @param int    $length
+     */
+    public static function assureArrayLength( array & $array, int $length )
+    {
+        if( $length > count( $array )) {
+            $array = array_pad( $array, $length, null );
+        }
+    }
+
+    /**
+     * Recursive array_change_key_case, uppercased
+     *
+     * @param array $array
+     * @return array|array[]
+     * @link https://www.php.net/manual/en/function.array-change-key-case.php#114914
+     */
+    public static function arrayChangeKeyCaseRecursive( array $array ) : array
+    {
+        return array_map( function( $item ) {
+            if( is_array( $item )) {
+                $item = self::arrayChangeKeyCaseRecursive( $item );
+            }
+            return $item;
+        },
+            array_change_key_case( $array, CASE_UPPER )
+        );
     }
 
     /**

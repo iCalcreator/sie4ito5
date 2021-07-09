@@ -1,17 +1,15 @@
 <?php
 /**
- * Sie4Ito5   PHP Sie 4I to 5 conversion package
+ * Sie4Ito5   PHP Sie4I SDK and Sie5 conversion package
  *
  * This file is a part of Sie4Ito5
  *
  * @author    Kjell-Inge Gustafsson, kigkonsult
  * @copyright 2021 Kjell-Inge Gustafsson, kigkonsult, All rights reserved
  * @link      https://kigkonsult.se
- * @version   1.2
  * @license   Subject matter of licence is the software Sie4Ito5.
- *            The above copyright, link, package and version notices,
- *            this licence notice shall be included in all copies or substantial
- *            portions of the Sie4Ito5.
+ *            The above package, copyright, link and this licence notice shall be
+ *            included in all copies or substantial portions of the Sie4Ito5.
  *
  *            Sie4Ito5 is free software: you can redistribute it and/or modify
  *            it under the terms of the GNU Lesser General Public License as
@@ -26,13 +24,13 @@
  *            You should have received a copy of the GNU Lesser General Public License
  *            along with Sie4Ito5. If not, see <https://www.gnu.org/licenses/>.
  */
+declare( strict_types = 1 );
 namespace Kigkonsult\Sie4Ito5;
 
 use DirectoryIterator;
 use Exception;
 use InvalidArgumentException;
 use Kigkonsult\Sie4Ito5\Util\StringUtil;
-use Kigkonsult\Sie5Sdk\Dto\SieEntry;
 use Kigkonsult\Sie5Sdk\XMLParse\Sie5Parser;
 use Kigkonsult\Sie5Sdk\XMLWrite\Sie5Writer;
 use PHPUnit\Framework\TestCase;
@@ -104,47 +102,63 @@ class TestFiles extends TestCase
             $tempFile1,
             $sie4Istring1
         );
+        // echo 'sie4Istring1' . PHP_EOL . StringUtil::cp437toUtf8( $sie4Istring1 ) . PHP_EOL;
 
         // parse Sie4I file (!!) into SieEntry
-        list( $sieEntry1, $isKsummaSet ) = self::Sie4ItoSieEntry( $tempFile1 );
+        $sie4IDto    = Sie4I::sie4IFileString2Sie4IDto( $tempFile1 );
+
+        $isKsummaSet1 = ( 2 == substr_count( $sie4Istring1Utf8, Sie4I::KSUMMA ));
+
         unlink( $tempFile1 );
+        // echo 'sie4IDto' . PHP_EOL . var_export( $sie4IDto, true ) . PHP_EOL; // test ###
+
+        $sieEntry1 = Sie4I::sie4IDto2SieEntry( $sie4IDto );
         $expected = [];
         $this->assertTrue(         // ---- validate SieEntry
             $sieEntry1->isValid( $expected ),
             sprintf( $FMT1, __FUNCTION__, $case + 1, PHP_EOL, var_export( $expected, true ), PHP_EOL )
         );
 
-        // parse #2 Sie4I (string) into SieEntry2 and compare 1/2
-        $this->assertEquals(
-            $sieEntry1->toString(),
-            Sie4I::factory()->parse4I( $sie4Istring1 )->toString(),
-            'sieEntry1 and sieEntry2 has NOT the same load'
-        );
-
         // write SieEntry1 to XML
-        $xml1 = Sie5Writer::factory()->write( $sieEntry1 );
+        $sieEntry1String = Sie5Writer::factory()->write( $sieEntry1 );
+        // parse xml back into SieEntry2
+        $sieEntry2 = Sie5Parser::factory()->parseXmlFromString( $sieEntry1String );
 
-        // parse xml into SieEntry2
-        $sieEntry2 = self::XMLtoSieEntry( $xml1 );
         $this->assertTrue(         // ---- validate SieEntry
             $sieEntry2->isValid( $expected ),
             sprintf( $FMT1, __FUNCTION__, $case + 2, PHP_EOL, var_export( $expected, true ), PHP_EOL )
         );
 
         // write Sie4I from SieEntry2 to string
-        $sie4Istring2 = self::sieEntryToSie4I( $sieEntry2, null, $isKsummaSet );
 
-        // parse Sie4I string (!!) into SieEntry
-        list( $sieEntry3, $isKsummsSet3 ) = self::Sie4ItoSieEntry( $sie4Istring2 );
+        $sie4Istring2 = Sie4I::sie4IDto2String(
+            Sie4I::sieEntry2Sie4IDto( $sieEntry2 ),
+            $isKsummaSet1
+        );
+
+        // echo 'sie4Istring2' . PHP_EOL . StringUtil::cp437toUtf8( $sie4Istring2 ) . PHP_EOL;
+
+        // parse Sie4I string (!!) back into SieEntry
+        $sieEntry3 = Sie4I::sie4IDto2SieEntry(
+            Sie4I::sie4IFileString2Sie4IDto( $sie4Istring2 )
+        );
+        $sieEntry3String = Sie5Writer::factory()->write( $sieEntry3 );
+        $isKsummaSet2 = ( 2 == substr_count( $sie4Istring2, Sie4I::KSUMMA ));
+
         $this->assertTrue(         // ---- validate SieEntry
             $sieEntry3->isValid( $expected ),
             sprintf( $FMT1, __FUNCTION__, $case + 3, PHP_EOL, var_export( $expected, true ), PHP_EOL )
         );
-
+        $this->assertTrue(
+            ( $isKsummaSet1 == $isKsummaSet2 ),
+            'KSUMMA diff' .
+            ', isKsummaSet1 : ' . var_export( $isKsummaSet1, true ) .
+            ', isKsummaSet2 : ' . var_export( $isKsummaSet2, true )
+        );
         // $sieEntry1 and $sieEntry3 has the same content
         $this->assertEquals(
-            $sieEntry1->toString(),
-            $sieEntry3->toString(),
+            $sieEntry1String,
+            $sieEntry3String,
             'sieEntry1 and sieEntry3 has NOT the same load'
         );
 
@@ -153,16 +167,22 @@ class TestFiles extends TestCase
         // convert SieEntry (again) to Sie4I string and file
         $tempFile3 = tempnam( sys_get_temp_dir(), __FUNCTION__ . '_2_');
         // $sie4Istring3 = self::sieEntryToSie4I( $sieEntry3, $tempFile2, $isKsummsSet3 );
-        $sie4Iwriter  = Sie4Iwriter::factory();
-        $sie4Istring3 = $sie4Iwriter->write4I( $sieEntry3, $tempFile3, $isKsummaSet );
-        if( $isKsummaSet ) {
+        $sie4IDto     = Sie4ILoader::factory( $sieEntry3 )->getSie4IDto();
+        if( $isKsummaSet2 ) {
+            $sie4Iwriter = Sie4IWriter::factory( $sie4IDto );
+            $dummy       = $sie4Iwriter->write4I( null, null, true );
+            $kSummaBase  = $sie4Iwriter->getKsummaBase();
             echo 'sie4Istring3 (ksumma base in utf8) :' . PHP_EOL .
                 StringUtil::cp437toUtf8(
-                    chunk_split( $sie4Iwriter->getKsummaBase(), 76, PHP_EOL )
+                    chunk_split( $kSummaBase, 76, PHP_EOL )
                 )
                 . PHP_EOL;
         }
-       $this->assertStringEqualsFile(
+
+        $sie4Istring3 = Sie4I::sie4IDto2String( $sie4IDto, $isKsummaSet2 );
+        Sie4I::sie4IDto2File( $sie4IDto, $tempFile3, $isKsummaSet2 );
+
+        $this->assertStringEqualsFile(
             $tempFile3,
             $sie4Istring3,
             'tempFile3 and sie4Istring3 has NOT the same load'
@@ -178,7 +198,7 @@ class TestFiles extends TestCase
         echo PHP_EOL . 'sie4Istring1 :' . PHP_EOL . $sie4Istring1 . PHP_EOL;
         echo PHP_EOL . 'sie4Istring2 :' . PHP_EOL . $sie4Istring2 . PHP_EOL;
         */
-        echo PHP_EOL . 'sie4Istring3 (i utf8) :' . PHP_EOL . $sie4Istring3Utf8 . PHP_EOL;
+        // echo PHP_EOL . 'sie4Istring3 (i utf8) :' . PHP_EOL . $sie4Istring3Utf8 . PHP_EOL;
 
         // file strings diff but in PHP from http://www.holomind.de/phpnet/diff.php
         $diff = PHPDiff( $sie4Istring1Utf8, $sie4Istring3Utf8 );
@@ -186,59 +206,6 @@ class TestFiles extends TestCase
             $diff,
             'diff 1/3 (i utf8) : ' . PHP_EOL . $diff
         );
-    }
-
-    /**
-     * Return array ( SieEntry, isKsummaSet ) parsed from Sie4I string/file
-     *
-     * @param string $sie4Iinput  string or file
-     * @return array [ SieEntry, bool ]
-     */
-    private static function Sie4ItoSieEntry( $sie4Iinput ) : array
-    {
-        $sie4Iparser = Sie4Iparser::factory( $sie4Iinput );
-        return [
-            $sie4Iparser->parse4I(),
-            $sie4Iparser->isKsummaSet()
-        ];
-    }
-
-    /**
-     * Return Sie4I string from SieEntry, opt also write to file
-     *
-     * @param SieEntry     $sieEntry
-     * @param null|string  $fileName
-     * @param null|bool    $ksummaSet
-     * @return string
-     */
-    private static function sieEntryToSie4I( SieEntry $sieEntry, $fileName = null, $ksummaSet = false ) : string
-    {
-        return Sie4I::factory()->write4I( $sieEntry, $fileName, $ksummaSet );
-    }
-
-    /**
-     * Return SieEntry from SieEntry XML string/file
-     *
-     * @param null|string $sieEntryString
-     * @param null|string $sieEntryFile
-     * @return SieEntry
-     */
-    private static function XMLtoSieEntry( $sieEntryString = null, $sieEntryFile = null ) : SieEntry
-    {
-        $parser = Sie5Parser::factory();
-        try {
-            if( null !== $sieEntryString ) {
-                $sieEntry = $parser->parseXmlFromString( $sieEntryString, false );
-            }
-            else {
-                $sieEntry = $parser->parseXmlFromFile( $sieEntryFile, false );
-            }
-        }
-        catch( Exception $e ) {
-            echo $e->getMessage() . PHP_EOL;
-            throw $e;
-        }
-        return $sieEntry;
     }
 
     /**
@@ -283,31 +250,35 @@ class TestFiles extends TestCase
      */
     public function testSie5File( int $case, string $fileName )
     {
-        static $FMT1 = '%s #%d not valid%s%s%s';
-
         echo sprintf( self::$FMT0, PHP_EOL, __FUNCTION__, $case, basename( $fileName ), PHP_EOL );
 
-        $sie4I = Sie4I::factory();
-
         // convert Sie5 (SieEntry) XML file to Sie4I string
-        $sie4IString1 = $sie4I->sie5XmlFileTo4I( $fileName );
-
-        // convert Sie5 (SieEntry) XML string to Sie4I string, compare string1/2
-        $sie4IString2 = $sie4I->sie5XmlStringTo4I( file_get_contents( $fileName ));
-        $this->assertEquals(
-            $sie4IString1,
-            $sie4IString2
+        $sie4IString1 = Sie4I::sie4IDto2String(
+            Sie4I::sieEntryfile2Sie4IDto( $fileName )
+        );
+        $sie4IString2 = Sie4I::sie4IDto2String(
+            Sie4I::sieEntryXML2Sie4IDto( file_get_contents( $fileName ))
         );
 
-        // convert Sie4I string source to Sie5 (SieEntry) XML string
-        $sie5XMLstring2 = $sie4I->sie4Ito5Xml( $sie4IString1 );
+        $this->assertEquals(
+            $sie4IString1,
+            $sie4IString2,
+            'Error comparing Sie4Is'
+        );
+
+        // echo 'sie4Istring1' . PHP_EOL . StringUtil::cp437toUtf8( $sie4IString1 ) . PHP_EOL;
+
+        // convert Sie4I string to Sie5 (SieEntry) XML string
+
+        $sie5XMLstring2 = Sie4I::sie4IDto2SieEntryXml(
+            Sie4I::sie4IFileString2Sie4IDto( $sie4IString1 )
+        );
 
         // compare SieEntry xml's, will turn up in some inconsistency
         $this->assertXmlStringEqualsXmlFile(
             $fileName,
             $sie5XMLstring2,
-            'Error comparing XML, Sie4I : '
+            'Error comparing XMLs'
         );
     }
-
 }

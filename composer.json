@@ -1,10 +1,11 @@
 {
     "name": "kigkonsult/sie4ito5",
-    "description": "Sie4Ito5 converts SIE 4I files to SIE5 XML",
+    "description": "PHP Sie4I SDK and Sie5 conversion package",
     "keywords": [
         "SIE",
         "SIE4I",
         "SIE5",
+        "SDK",
         "XML",
         "export",
         "import",
@@ -16,7 +17,6 @@
     ],
     "minimum-stability": "stable",
     "type": "library",
-    "time" : "2021-05-27",
     "license": "LGPL-3.0-or-later",
     "authors": [
         {
@@ -39,8 +39,9 @@
     },
     "require": {
         "ext-iconv": "*",
+        "ext-json": "*",
         "php": "^7.0",
-        "kigkonsult/asit": "dev-master",
+        "kigkonsult/asit": ">=1.8",
         "kigkonsult/sie5sdk": ">=1.0.6"
     },
     "require-dev": {
@@ -52,5 +53,6 @@
     "scripts": {
         "post-install-cmd": "\"vendor/bin/phpcs\" --config-set installed_paths vendor/phpcompatibility/php-compatibility",
         "post-update-cmd" : "\"vendor/bin/phpcs\" --config-set installed_paths vendor/phpcompatibility/php-compatibility"
-    }
+    },
+    "scriptId": ""
 }

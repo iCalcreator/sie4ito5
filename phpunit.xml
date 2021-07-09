@@ -1,17 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
- Sie4Ito5   PHP Sie 4I to 5 conversion package
+ Sie4Ito5  PHP Sie4I SDK and Sie5 conversion package
 
  This file is a part of Sie4Ito5
 
  author    Kjell-Inge Gustafsson, kigkonsult
  copyright 2021 Kjell-Inge Gustafsson, kigkonsult, All rights reserved
  link      https://kigkonsult.se
- version   1.2
  license   Subject matter of licence is the software Sie4Ito5.
-           The above copyright, link, package and version notices,
-           this licence notice shall be included in all copies or substantial
-           portions of the Sie4Ito5.
+           The above package, copyright, link and this licence notice shall be
+           included in all copies or substantial portions of the Sie4Ito5.
 
            Sie4Ito5 is free software: you can redistribute it and/or modify
            it under the terms of the GNU Lesser General Public License as
@@ -38,6 +36,7 @@
         >
     <testsuites>
         <testsuite name="File parse/write Tests">
+            <file>./test/TestDemo.php</file>
             <file>./test/TestFiles.php</file>
         </testsuite>
     </testsuites>
@@ -47,9 +46,23 @@
                 processUncoveredFilesFromWhitelist="true">
             <file>./src/Sie4I.php</file>
             <file>./src/Sie4IInterface.php</file>
-            <file>./src/Sie4Iparser.php</file>
+            <file>./src/Sie4ILoader.php</file>
+            <file>./src/Sie4IParser.php</file>
             <file>./src/Sie4IValidator.php</file>
-            <file>./src/Sie4Iwriter.php</file>
+            <file>./src/Sie4IWriter.php</file>
+            <file>./src/Sie5EntryLoader.php</file>
+            <file>./src/Api/Array2Sie4IDto.php</file>
+            <file>./src/Api/Json2Sie4IDto.php</file>
+            <file>./src/Api/Sie4IDto2Array.php</file>
+            <file>./src/Api/Sie4IDto2Json.php</file>
+            <file>./src/Dto/AccountDto.php</file>
+            <file>./src/Dto/DimDto.php</file>
+            <file>./src/Dto/DimObjektDto.php</file>
+            <file>./src/Dto/KontoNrTrait.php</file>
+            <file>./src/Dto/IdDto.php</file>
+            <file>./src/Dto/Sie4IDto.php</file>
+            <file>./src/Dto/TransDto.php</file>
+            <file>./src/Dto/VerDto.php</file>
             <file>./src/Util/ArrayUtil.php</file>
             <file>./src/Util/DateTimeUtil.php</file>
             <file>./src/Util/FileUtil.php</file>

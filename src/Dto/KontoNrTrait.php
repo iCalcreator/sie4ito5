@@ -25,38 +25,47 @@
  *            along with Sie4Ito5. If not, see <https://www.gnu.org/licenses/>.
  */
 declare( strict_types = 1 );
-namespace Kigkonsult\Sie4Ito5\Util;
+namespace Kigkonsult\Sie4Ito5\Dto;
 
-use DateTime;
-use Exception;
-use RuntimeException;
+use Kigkonsult\Sie4Ito5\Sie4IValidator;
 
-use function sprintf;
-
-class DateTimeUtil
+trait KontoNrTrait
 {
+    /**
+     * @var string
+     */
+    private $kontoNr = null;
 
     /**
-     * @param string $dateTimeString
-     * @param string $label
-     * @param int    $errCode
-     * @return DateTime
-     * @throw RuntimeException
+     * Set kontoNr
+     *
+     * @return null|string
      */
-    public static function getDateTime( string $dateTimeString, string $label, int $errCode ) : DateTime
+    public function getKontoNr()
     {
-        static $FMT0 = '%s : %s, %s';
-        try {
-            $dateTime = new DateTime( $dateTimeString );
-        }
-        catch( Exception $e ) {
-            throw new RuntimeException(
-                sprintf( $FMT0, $label, $dateTimeString, $e->getMessage()),
-                $errCode,
-                $e
-            );
-        }
-        return $dateTime;
+        return $this->kontoNr;
     }
 
+    /**
+     * Return bool true if kontoNr is set
+     *
+     * @return bool
+     */
+    public function isKontoNrSet() : bool
+    {
+        return ( null !== $this->kontoNr );
+    }
+
+    /**
+     * Set kontoNr
+     *
+     * @param int|string $kontoNr
+     * @return static
+     */
+    public function setKontoNr( $kontoNr ) : self
+    {
+        Sie4IValidator::assertIntegerish( $kontoNr );
+        $this->kontoNr = (string) $kontoNr;
+        return $this;
+    }
 }

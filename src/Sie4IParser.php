@@ -1,17 +1,15 @@
 <?php
 /**
- * Sie4Ito5   PHP Sie 4I to 5 conversion package
+ * Sie4Ito5   PHP Sie4I SDK and Sie5 conversion package
  *
  * This file is a part of Sie4Ito5
  *
  * @author    Kjell-Inge Gustafsson, kigkonsult
  * @copyright 2021 Kjell-Inge Gustafsson, kigkonsult, All rights reserved
  * @link      https://kigkonsult.se
- * @version   1.2
  * @license   Subject matter of licence is the software Sie4Ito5.
- *            The above copyright, link, package and version notices,
- *            this licence notice shall be included in all copies or substantial
- *            portions of the Sie4Ito5.
+ *            The above package, copyright, link and this licence notice shall be
+ *            included in all copies or substantial portions of the Sie4Ito5.
  *
  *            Sie4Ito5 is free software: you can redistribute it and/or modify
  *            it under the terms of the GNU Lesser General Public License as
@@ -31,30 +29,18 @@ namespace Kigkonsult\Sie4Ito5;
 
 use InvalidArgumentException;
 use Kigkonsult\Asit\It;
+use Kigkonsult\Sie4Ito5\Dto\DimObjektDto;
+use Kigkonsult\Sie4Ito5\Dto\IdDto;
+use Kigkonsult\Sie4Ito5\Dto\TransDto;
+use Kigkonsult\Sie4Ito5\Dto\VerDto;
 use Kigkonsult\Sie4Ito5\Util\ArrayUtil;
 use Kigkonsult\Sie4Ito5\Util\DateTimeUtil;
 use Kigkonsult\Sie4Ito5\Util\FileUtil;
 use Kigkonsult\Sie4Ito5\Util\StringUtil;
-use Kigkonsult\Sie5Sdk\Dto\AccountingCurrencyType;
-use Kigkonsult\Sie5Sdk\Dto\AccountsTypeEntry;
-use Kigkonsult\Sie5Sdk\Dto\AccountTypeEntry;
-use Kigkonsult\Sie5Sdk\Dto\CompanyTypeEntry;
-use Kigkonsult\Sie5Sdk\Dto\DimensionsTypeEntry;
-use Kigkonsult\Sie5Sdk\Dto\DimensionTypeEntry;
-use Kigkonsult\Sie5Sdk\Dto\FileCreationType;
-use Kigkonsult\Sie5Sdk\Dto\FileInfoTypeEntry;
-use Kigkonsult\Sie5Sdk\Dto\JournalEntryTypeEntry;
-use Kigkonsult\Sie5Sdk\Dto\JournalTypeEntry;
-use Kigkonsult\Sie5Sdk\Dto\LedgerEntryTypeEntry;
-use Kigkonsult\Sie5Sdk\Dto\ObjectReferenceType;
-use Kigkonsult\Sie5Sdk\Dto\ObjectType;
-use Kigkonsult\Sie5Sdk\Dto\OriginalEntryInfoType;
-use Kigkonsult\Sie5Sdk\Dto\SieEntry;
-use Kigkonsult\Sie5Sdk\Dto\SoftwareProductType;
+use Kigkonsult\Sie4Ito5\Dto\Sie4IDto;
 use RuntimeException;
 
 use function array_map;
-use function array_pad;
 use function count;
 use function explode;
 use function in_array;
@@ -62,10 +48,14 @@ use function is_array;
 use function is_string;
 use function ksort;
 use function sprintf;
-use function strcmp;
 use function trim;
 
-class Sie4Iparser implements Sie4IInterface
+/**
+ * Class Sie4IParser
+ *
+ * Parse Sie4I file/string into Sie4IDto
+ */
+class Sie4IParser implements Sie4IInterface
 {
     /**
      * posterna förekommer i följande ordning:
@@ -80,7 +70,7 @@ class Sie4Iparser implements Sie4IInterface
      *
      * @var array  may NOT occur in order in Sie4I
      */
-    private static $IDLABELS = [
+    protected static $IDLABELS = [
         self::PROGRAM,
         self::FORMAT,
         self::GEN,
@@ -102,7 +92,7 @@ class Sie4Iparser implements Sie4IInterface
      *
      * @var array  may NOT occur in order in Sie4I
      */
-    private static $ACCOUNTLABELS = [
+    protected static $ACCOUNTLABELS = [
         self::KONTO,
         self::KTYP,
         self::ENHET,
@@ -117,20 +107,11 @@ class Sie4Iparser implements Sie4IInterface
      *
      * @var array  may NOT occur in order in Sie4I
      */
-    private static $LEDGERENTRYLABELS = [
+    protected static $LEDGERENTRYLABELS = [
         self::VER,
         self::TRANS,
         self::RTRANS,
         self::BTRANS,
-    ];
-
-    /**
-     * Kontrollsummeposter
-     *
-     * @var array
-     */
-    private static $CHECKSUMLABELS = [
-        self::KSUMMA
     ];
 
     /**
@@ -154,11 +135,16 @@ class Sie4Iparser implements Sie4IInterface
     }
 
     /**
-     * @var SieEntry
+     * @var Sie4IDto
      */
-    private $sieEntry = null;
+    private $sie4IDto = null;
 
-    private $currentJournalEntryTypeEntry = null;
+    /**
+     * Current VerDto, 'parent' for TransDto's
+     *
+     * @var VerDto
+     */
+    private $currentVerDto = null;
 
     /**
      * @var array
@@ -201,8 +187,8 @@ class Sie4Iparser implements Sie4IInterface
             }
             $source = trim( $source );
             if( ! StringUtil::startsWith( $source, self::FLAGGA )) {
-                FileUtil::assertReadFile((string) $source );
-                $input = FileUtil::readFile((string) $source );
+                FileUtil::assertReadFile((string) $source, 1112 );
+                $input = FileUtil::readFile((string) $source, 1113 );
             }
             else {
                 $input = StringUtil::string2Arr(
@@ -213,49 +199,35 @@ class Sie4Iparser implements Sie4IInterface
         $fileRowsIter = new It(
             array_map( $TRIM, array_map( $TAB2SPACE, $input ))
         );
-        $isKsummaSet     = Sie4IValidator::validateInput( $fileRowsIter );
+        $isKsummaSet     = Sie4IValidator::assertSie4IInput( $fileRowsIter );
         $this->input     = $fileRowsIter;
         $this->ksummaSet = $isKsummaSet;
         return $this;
     }
 
     /**
-     * Init SieEntry, prepare for Sie5 XML write
+     * Parse Sie4I, opt input from Sie4I file, -array (rows), -string, return sie4IDto
+     *
+     * @param mixed $source
+     * @return Sie4IDto
+     * @throws InvalidArgumentException
+     * @throws RuntimeException
+     * @deprecated
      */
-    private function initSieEntry()
+    public function parse4I( $source = null ) : Sie4IDto
     {
-        $this->sieEntry = sieEntry::factory()
-            ->setXMLattribute(
-                SieEntry::XMLNS,
-                SieEntry::SIE5URI
-            )
-            ->setXMLattribute(
-                SieEntry::XMLNS_XSI,
-                SieEntry::XMLSCHEMAINSTANCE
-            )
-            ->setXMLattribute(
-                SieEntry::XMLNS_XSD,
-                SieEntry::XMLSCHEMA
-            )
-            ->setXMLattribute(
-                SieEntry::XSI_SCHEMALOCATION,
-                SieEntry::SIE5SCHEMALOCATION
-            )
-            ->setFileInfo(
-                FileInfoTypeEntry::factory()
-                    ->setCompany( CompanyTypeEntry::factory())
-            );
+        return $this->process( $source );
     }
 
     /**
-     * Parse Sie4I, opt input from Sie4I file, -array, -string, return SieEntry
+     * Parse Sie4I, opt input from Sie4I file, -array (rows), -string, return sie4IDto
      *
      * @param mixed $source
-     * @return SieEntry
+     * @return Sie4IDto
      * @throws InvalidArgumentException
      * @throws RuntimeException
      */
-    public function parse4I( $source = null ) : SieEntry
+    public function process( $source = null ) : Sie4IDto
     {
         static $FMT1     = 'Input error (#%d) on post %s';
         static $GROUP12  = [ 1, 2 ];
@@ -264,10 +236,10 @@ class Sie4Iparser implements Sie4IInterface
         if( ! empty( $source )) {
             $this->setInput( $source );
         }
-        $this->initSieEntry();
+        $this->sie4IDto = new Sie4IDto();
         $this->input->rewind();
-        $currentGroup = 0;
-        $prevLabel    = $post = null;
+        $currentGroup   = 0;
+        $prevLabel      = null;
         $this->postReadGroupActionKeys = [];
         while( $this->input->valid()) {
             $post = $this->input->current();
@@ -315,11 +287,11 @@ class Sie4Iparser implements Sie4IInterface
                         $this->postReadGroupAction();
                         $currentGroup = 4;
                     }
-                    $this->readLedgerEntryData( $label, $rowData );
+                    $this->readVerTransData( $label, $rowData );
                     break;
                 case (( 4 === $currentGroup ) && empty( $label )) :
                     // data content for previous Label
-                    $this->readLedgerEntryData( $prevLabel, $rowData );
+                    $this->readVerTransData( $prevLabel, $rowData );
                     break;
 
                 default :
@@ -334,14 +306,14 @@ class Sie4Iparser implements Sie4IInterface
             // finish off group 4 actions
             $this->postReadGroupAction();
         }
-        return $this->sieEntry;
+        return $this->sie4IDto;
     }
 
     /**
      * Manage Sie4I 'Identifikationsposter'
      *
      * Note för #GEN
-     *   if 'sign' is missing, '#PROGRAM programnamn' is used
+     *   if 'sign' is missing, '#PROGRAM programnamn' will be used in Sie4IWriter
      *
      * @param string $label
      * @param array  $rowData
@@ -349,7 +321,10 @@ class Sie4Iparser implements Sie4IInterface
      */
     private function readIdData( string $label, array $rowData )
     {
-        $fileInfo = $this->sieEntry->getFileInfo();
+        if( ! $this->sie4IDto->isIdDtoSet()) {
+            $this->sie4IDto->setIdDto( new IdDto());
+        }
+        $idDto = $this->sie4IDto->getIdDto();
         switch( $label ) {
             /**
              * Vilket program som genererat filen
@@ -357,11 +332,9 @@ class Sie4Iparser implements Sie4IInterface
              * #PROGRAM programnamn version
              */
             case self::PROGRAM :
-                $fileInfo->setSoftwareProduct(
-                    SoftwareProductType::factoryNameVersion( $rowData[0], $rowData[1] )
-                );
-                // prepare if missing #GEN sign
-                $this->postReadGroupActionKeys[self::GEN] = $rowData[0];
+                ArrayUtil::assureArrayLength( $rowData, 2 );
+                $idDto->setProgramnamn( $rowData[0] );
+                $idDto->setVersion( $rowData[1] );
                 break;
 
             /**
@@ -379,19 +352,20 @@ class Sie4Iparser implements Sie4IInterface
             /**
              * När och av vem som filen genererats
              * #GEN datum sign
-             * Obligatorisk (sign opt)
+             * Obligatorisk (sign opt) Sie4I, båda obl. Sie5 SieEntry
              */
             case self::GEN :
-                $dateTime = DateTimeUtil::getDateTime( $rowData[0], self::GEN, 1511 );
-                if( ! isset( $rowData[1] )) {
-                    $fileCreationType = FileCreationType::factory()->setTime( $dateTime );
+                ArrayUtil::assureArrayLength( $rowData, 2 );
+                $idDto->setGenDate(
+                    DateTimeUtil::getDateTime(
+                        $rowData[0],
+                        self::GEN,
+                        1511
+                    )
+                );
+                if( ! empty( $rowData[1] )) {
+                    $idDto->setGenSign( $rowData[1] );
                 }
-                else {
-                    // undo #GEN prepare (above) due it is found
-                    unset( $this->postReadGroupActionKeys[self::GEN] );
-                    $fileCreationType = FileCreationType::factoryByTime( $rowData[1], $dateTime );
-                }
-                $fileInfo->setFileCreation( $fileCreationType );
                 break;
 
             /**
@@ -432,7 +406,8 @@ class Sie4Iparser implements Sie4IInterface
              * valfri
              */
             case self::FNR :
-                $fileInfo->getCompany()->setClientId( $rowData[0] );
+                ArrayUtil::assureArrayLength( $rowData, 1 );
+                $idDto->setFnrId( $rowData[0] );
                 break;
 
             /**
@@ -441,13 +416,15 @@ class Sie4Iparser implements Sie4IInterface
              * #ORGNR orgnr förvnr verknr
              * förvnr : anv då ensk. person driver flera ensk. firmor (ordningsnr)
              * verknr : anv ej
-             * valfri, MEN orgnr obligatoriskt i SieEntry (FileInfoTypeEntry/CompanyTypeEntry)
+             * valfri, MEN orgnr obligatoriskt i sie4IDto (FileInfoTypeEntry/CompanyTypeEntry)
              */
             case self::ORGNR :
-                $company = $fileInfo->getCompany();
-                $company->setOrganizationId( $rowData[0] );
-                $company->setMultiple(
-                    (( isset( $rowData[1] ) && ! empty( $rowData[1] )) ? (int) $rowData[1] : 1 )
+                ArrayUtil::assureArrayLength( $rowData, 2 );
+                $idDto->setOrgnr( $rowData[0] );
+                $idDto->setMultiple(
+                    ( ! empty( $rowData[1] ))
+                    ? (int) $rowData[1] :
+                    1
                 );
                 break;
 
@@ -465,11 +442,11 @@ class Sie4Iparser implements Sie4IInterface
              * Fullständigt namn för det företag som exporterats
              *
              * #FNAMN företagsnamn
-             * Obligatorisk men valfri i SieEntry (FileInfoTypeEntry/CompanyTypeEntry)
+             * Obligatorisk men valfri i sie4IDto (FileInfoTypeEntry/CompanyTypeEntry)
              */
             case self::FNAMN :
-                $company = $fileInfo->getCompany();
-                $company->setName( $rowData[0] );
+                ArrayUtil::assureArrayLength( $rowData, 1 );
+                $idDto->setFnamn( $rowData[0] );
                 break;
 
             /**
@@ -509,9 +486,8 @@ class Sie4Iparser implements Sie4IInterface
              * valfri
              */
             case self::VALUTA :
-                $fileInfo->setAccountingCurrency(
-                    AccountingCurrencyType::factoryCurrency( $rowData[0] )
-                );
+                ArrayUtil::assureArrayLength( $rowData, 1 );
+                $idDto->setValutakod( $rowData[0] );
                 break;
         } // end switch
     }
@@ -531,10 +507,11 @@ class Sie4Iparser implements Sie4IInterface
             /**
              * Kontouppgifter
              *
-             * #KONTO kontonr kontonamn
+             * #KONTO kontonr kontoNamn
              * valfri
              */
             case self::KONTO :
+                ArrayUtil::assureArrayLength( $rowData, 2 );
                 ArrayUtil::assureIsArray(
                     $this->postReadGroupActionKeys,
                     self::KONTO
@@ -549,10 +526,11 @@ class Sie4Iparser implements Sie4IInterface
             /**
              * Kontotyp
              *
-             * #KTYP kontonr  kontotyp
+             * #KTYP kontonr  kontoTyp
              * valfri
              */
             case self::KTYP :
+                ArrayUtil::assureArrayLength( $rowData, 2 );
                 ArrayUtil::assureIsArray(
                     $this->postReadGroupActionKeys,
                     self::KONTO
@@ -572,6 +550,7 @@ class Sie4Iparser implements Sie4IInterface
              * valfri
              */
             case self::ENHET :
+                ArrayUtil::assureArrayLength( $rowData, 2 );
                 ArrayUtil::assureIsArray(
                     $this->postReadGroupActionKeys,
                     self::KONTO
@@ -600,6 +579,7 @@ class Sie4Iparser implements Sie4IInterface
              * valfri
              */
             case self::DIM :
+                ArrayUtil::assureArrayLength( $rowData, 2 );
                 ArrayUtil::assureIsArray(
                     $this->postReadGroupActionKeys,
                     self::DIM
@@ -628,6 +608,7 @@ class Sie4Iparser implements Sie4IInterface
              * valfri
              */
             case self::OBJEKT :
+                ArrayUtil::assureArrayLength( $rowData, 3 );
                 ArrayUtil::assureIsArray(
                     $this->postReadGroupActionKeys,
                     self::DIM
@@ -652,7 +633,6 @@ class Sie4Iparser implements Sie4IInterface
      *
      * Note för #VER
      *   if 'regdatum' is missing, 'verdatum' is used
-     *   if 'sign' is missing, #GEN is used
      *
      * Note för #TRANS
      *   only support for 'dimensionsnummer och objektnummer' in the 'objektlista'
@@ -662,7 +642,7 @@ class Sie4Iparser implements Sie4IInterface
      * @param array  $rowData
      * @throws RuntimeException
      */
-    private function readLedgerEntryData( string $label, array $rowData )
+    private function readVerTransData( string $label, array $rowData )
     {
         if( in_array( $rowData[0], StringUtil::$CURLYBRACKETS )) {
             return;
@@ -674,7 +654,7 @@ class Sie4Iparser implements Sie4IInterface
              * valfri
              */
             case self::VER :
-                $this->readLedgerEntryVERData( $rowData );
+                $this->readVerData( $rowData );
                 break;
 
             /**
@@ -683,7 +663,7 @@ class Sie4Iparser implements Sie4IInterface
              * valfri
              */
             case self::TRANS :
-                $this->readLedgerEntryTRANSData( $rowData );
+                $this->readTransData( $rowData );
                 break;
 
             /**
@@ -715,85 +695,48 @@ class Sie4Iparser implements Sie4IInterface
      *
      * @param array $rowData
      */
-    private function readLedgerEntryVERData( array $rowData )
+    private function readVerData( array $rowData )
     {
-        if( 6 > count( $rowData )) {
-            $rowData = array_pad( $rowData, 6, null );
-        }
+        ArrayUtil::assureArrayLength( $rowData, 6 );
         list( $serie, $vernr, $verdatum, $vertext, $regdatum, $sign ) = $rowData;
-        $journalTypeEntry = $this->getJournalTypeEntry( $serie );
+
         // save for later #TRANS use
-        $this->currentJournalEntryTypeEntry = JournalEntryTypeEntry::factory();
+        $this->currentVerDto = new VerDto();
+        $this->sie4IDto->addVerDto( $this->currentVerDto );
+
+        if( ! empty( $serie )) {
+            $this->currentVerDto->setSerie( $serie );
+        }
         if( ! empty( $vernr )) {
-            $this->currentJournalEntryTypeEntry->setId((int) $vernr );
+            $this->currentVerDto->setVernr((int) $vernr );
         }
-        $dateTime = DateTimeUtil::getDateTime( $verdatum, self::VER, 1711 );
-        $this->currentJournalEntryTypeEntry->setJournalDate( $dateTime );
-        if( ! empty( $vertext )) {
-            $this->currentJournalEntryTypeEntry->setText( $vertext );
-        }
-
-        $journalTypeEntry->addJournalEntry( $this->currentJournalEntryTypeEntry );
-        $dateTime = empty( $regdatum )
-            // if missing, set same as verdatum
-            ? clone $dateTime
-            : DateTimeUtil::getDateTime( $regdatum, self::VER, 1712 );
-
-        if( empty( $sign )) {
-            // fetch sign from #GEN
-            $sign = $this->sieEntry->getFileInfo()->getFileCreation()->getBy();
-        }
-        $this->currentJournalEntryTypeEntry->setOriginalEntryInfo(
-            OriginalEntryInfoType::factoryByDate( $sign, $dateTime )
+        $this->currentVerDto->setVerdatum(
+            DateTimeUtil::getDateTime( $verdatum, self::VER, 1711 )
         );
-    }
-
-    /**
-     * @param string $serie
-     * @return JournalTypeEntry
-     */
-    private function getJournalTypeEntry( string $serie ) : JournalTypeEntry
-    {
-        $journalTypeEntryFound = false;
-        $journalTypeEntry      = null;
-        $journals = $this->sieEntry->getJournal();
-        if( ! empty( $journals )) {
-            foreach( $journals as $journalTypeEntry ) {
-                $journalTypeEntryId = $journalTypeEntry->getId();
-                if( empty( $serie ) && empty( $journalTypeEntryId )) {
-                    $journalTypeEntryFound = true;
-                    break;
-                }
-                if( 0 === strcmp( $serie, (string) $journalTypeEntryId )) {
-                    $journalTypeEntryFound = true;
-                    break;
-                }
-            } // end foreach
-        } // end if
-        if( ! $journalTypeEntryFound ) {
-            // create if NOT exists
-            $journalTypeEntry = JournalTypeEntry::factory();
-            $this->sieEntry->addJournal( $journalTypeEntry );
-            if( ! empty( $serie )) {
-                $journalTypeEntry->setId( $serie );
-            }
-        } // end if
-        return $journalTypeEntry;
+        if( ! empty( $vertext )) {
+            $this->currentVerDto->setVertext( $vertext );
+        }
+        // set to verdatum if missing, skipped in Sie4Iwriter2 if equal
+        $this->currentVerDto->setRegdatum(
+            empty( $regdatum )
+                ? $this->currentVerDto->getVerdatum()
+                : DateTimeUtil::getDateTime( $regdatum, self::VER, 1712 )
+        );
+        if( ! empty( $sign )) {
+            $this->currentVerDto->setSign( $sign );
+        }
     }
 
     /**
      * Manage #TRANS data
      *
      * #TRANS kontonr {objektlista} belopp transdat(opt) transtext(opt) kvantitet sign
-     * sign skipped
      *
      * @param array $rowData
      */
-    private function readLedgerEntryTRANSData( array $rowData )
+    private function readTransData( array $rowData )
     {
-        if( 7 > count( $rowData )) {
-            $rowData = array_pad( $rowData, 7, null );
-        }
+        ArrayUtil::assureArrayLength( $rowData, 7 );
         list(
             $kontonr,
             $objektlista,
@@ -804,38 +747,34 @@ class Sie4Iparser implements Sie4IInterface
             $sign
         )  = $rowData;
 
-        // $this->currentJournalEntryTypeEntry holds current journalEntryTypeEntry
-        // created in #VER
-        $ledgerEntryTypeEntry = LedgerEntryTypeEntry::factory();
-        $this->currentJournalEntryTypeEntry->addLedgerEntry( $ledgerEntryTypeEntry );
-
-        $ledgerEntryTypeEntry->setAccountId( $kontonr );
-        self::updObjektlista( $ledgerEntryTypeEntry, $objektlista );
-        $ledgerEntryTypeEntry->setAmount( $belopp );
+        $transDto = new TransDto();
+        $transDto->setKontoNr( $kontonr );
+        self::updObjektlista( $transDto, $objektlista );
+        $transDto->setBelopp( $belopp );
         if( ! empty( $transdat )) {
-            $ledgerEntryTypeEntry->setLedgerDate(
+            $transDto->setTransdat(
                 DateTimeUtil::getDateTime( $transdat, self::TRANS, 1713 )
             );
         } // end if
         if( ! empty( $transtext )) {
-            $ledgerEntryTypeEntry->setText( $transtext );
+            $transDto->setTranstext( $transtext );
         }
         if( null !== $kvantitet ) {
-            $ledgerEntryTypeEntry->setQuantity( $kvantitet );
+            $transDto->setKvantitet( $kvantitet );
         }
-        // skip sign
+        if( ! empty( $sign )) {
+            $transDto->setSign( $sign );
+        }
+        $this->currentVerDto->addTransDto( $transDto );
     }
 
     /**
-     * Update ObjectReferences from objektlista, pairs of dimId/objectId
+     * Create DimObjektDtos from objektlista, i.e. pairs of dimId/objectId
      *
-     * @param LedgerEntryTypeEntry $ledgerEntryTypeEntry
-     * @param string               $objektlista
+     * @param TransDto $transDto
+     * @param string   $objektlista
      */
-    private static function updObjektlista(
-        LedgerEntryTypeEntry $ledgerEntryTypeEntry,
-        string $objektlista
-    )
+    private static function updObjektlista( TransDto $transDto, string $objektlista )
     {
         if( empty( $objektlista )) {
             return;
@@ -844,18 +783,18 @@ class Sie4Iparser implements Sie4IInterface
         $len        = count( $dimObjList ) - 1;
         for( $x1 = 0; $x1 < $len; $x1 += 2 ) {
             $x2     = $x1 + 1;
-            $ledgerEntryTypeEntry->addLedgerEntryTypeEntry(
-                LedgerEntryTypeEntry::OBJECTREFERENCE,
-                ObjectReferenceType::factoryDimIdObjectId(
-                    $dimObjList[$x1],
-                    $dimObjList[$x2]
-                )
+            $transDto->addDimIdObjektId(
+                (int) $dimObjList[$x1],
+                $dimObjList[$x2]
             );
         } // end for
     }
 
     /**
      * Due to labels in group are NOT required to be in order, aggregate or opt fix read missing parts here
+     *
+     * @throws InvalidArgumentException
+     * @throws RuntimeException
      */
     private function postReadGroupAction()
     {
@@ -864,11 +803,6 @@ class Sie4Iparser implements Sie4IInterface
         }
         foreach( $this->postReadGroupActionKeys as $groupActionKey => $values ) {
             switch( $groupActionKey ) {
-
-                case self::GEN :
-                    $this->sieEntry->getFileInfo()->getFileCreation()->setBy( $values );
-                    break;
-
                 case self::DIM :
                     $this->postDimActions( $values );
                     break;
@@ -876,7 +810,6 @@ class Sie4Iparser implements Sie4IInterface
                 case self::KONTO :
                     $this->postKontoActions( $values );
                     break;
-
             } // end switch
         } // end foreach
         $this->postReadGroupActionKeys = [];
@@ -889,31 +822,25 @@ class Sie4Iparser implements Sie4IInterface
      */
     private function postDimActions( array $dimValues )
     {
-        static $FMT4 = 'Namn för dimension %s saknas';
-        $dimensions = $this->sieEntry->getDimensions();
-        if( empty( $dimensions )) {
-            $dimensions = DimensionsTypeEntry::factory();
-            $this->sieEntry->setDimensions( $dimensions );
-        }
         // $dimensionId[0] = namn
         // $dimensionId[self::OBJEKT][objektnr] = objektnamn
         ksort( $dimValues );
         foreach( $dimValues as $dimensionId => $dimensionData ) {
-            if( ! isset( $dimensionData[0] )) {
-                throw new RuntimeException( sprintf( $FMT4, $dimensionId ), 1815 );
-            }
-            $dimensionTypeEntry = DimensionTypeEntry::factoryIdName(
-                $dimensionId,
-                $dimensionData[0]
+            $this->sie4IDto->addDimDto(
+                DimObjektDto::factoryDim(
+                    $dimensionId,
+                    $dimensionData[0]
+                )
             );
             if( isset( $dimensionData[self::OBJEKT] )) {
-                foreach( $dimensionData[self::OBJEKT] as $objectId => $objectName ) {
-                    $dimensionTypeEntry->addObject(
-                        ObjectType::factoryIdName((string) $objectId, $objectName )
+                foreach($dimensionData[self::OBJEKT] as $objektNr => $objektNamn ) {
+                    $this->sie4IDto->addDimObjekt(
+                        $dimensionId,
+                        (string) $objektNr,
+                        $objektNamn
                     );
                 } // end foreach
             } // end if
-            $dimensions->addDimension( $dimensionTypeEntry );
         } // end foreach
     }
 
@@ -921,49 +848,22 @@ class Sie4Iparser implements Sie4IInterface
      * Create AccountsTypeEntry for all KONTO/KTYP/ENHET
      *
      * @param array $kontoValues
+     * @throws InvalidArgumentException
+     * @throws RuntimeException
      */
     private function postKontoActions( array $kontoValues )
     {
-        static $KONTOTYPER = [
-            'T' => AccountTypeEntry::ASSET,     // Tillgång
-            'S' => AccountTypeEntry::LIABILITY, // Skuld
-            'K' => AccountTypeEntry::COST,      // kostnad
-            'I' => AccountTypeEntry::INCOME,    // Intäkt
-        ];
-        static $FMT1 = 'Namn saknas för konto ';
-        static $FMT2 = 'Typ saknas för konto ';
-        static $FMT3 = 'Ogiltig kontotyp för konto %s : >%s<';
-        $accounts = $this->sieEntry->getAccounts();
-        if( empty( $accounts )) {
-            $accounts = AccountsTypeEntry::factory();
-            $this->sieEntry->setAccounts( $accounts );
-        }
-        // kontoNr[0] = kontonamn
-        // kontoNr[1] = kontotyp, Ska vara någon av typerna asset, liability, cost eller income.
+        // kontoNr[0] = kontoNamn
+        // kontoNr[1] = kontoTyp, Ska vara någon av typerna T, S, K, I
         // kontoNr[2] = enhet
         ksort( $kontoValues );
         foreach( $kontoValues as $kontoNr => $kontoData ) {
-            if( ! isset( $kontoData[0] )) {
-                throw new RuntimeException( $FMT1 . $kontoNr, 1821 );
-            }
-            if( ! isset( $kontoData[1] )) {
-                throw new RuntimeException( $FMT2 . $kontoNr, 1822 );
-            }
-            if( ! isset( $KONTOTYPER[$kontoData[1]] )) {
-                throw new RuntimeException(
-                    sprintf( $FMT3, $kontoNr, $kontoData[1] ),
-                    1823
-                );
-            }
-            $accountTypeEntry = AccountTypeEntry::factoryIdNameType(
+            $this->sie4IDto->addAccount(
                 (string) $kontoNr,
                 $kontoData[0],
-                $KONTOTYPER[$kontoData[1]]
+                $kontoData[1],
+                ( $kontoData[2] ?? null )
             );
-            if( isset( $kontoData[2] )) {
-                $accountTypeEntry->setUnit( $kontoData[2] );
-            }
-            $accounts->addAccount( $accountTypeEntry );
         } // end foreach
     }
 }
